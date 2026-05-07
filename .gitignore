@@ -1,0 +1,34 @@
+# Excel & POS data files
+pos.payment.xlsx
+pos.payment (1).xlsx
+*.xlsx
+*.xls
+*.zip
+
+# Extracted/temporary files
+pos_extracted/
+
+# Windows system files
+Thumbs.db
+desktop.ini
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+*.log
+npm-debug.log*
+
+# Node modules (if ever used)
+node_modules/

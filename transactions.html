@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายการออเดอร์ทั้งหมด - Sales Data</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); min-height: 100vh; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border-radius: 24px;
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .filter-btn.active { background-color: #2563eb; color: white; border-color: #2563eb; }
+        .nowrap { white-space: nowrap; }
+        .filter-btn:not(.active):hover { background-color: #f8fafc; }
+        tr.hidden-row { display: none; }
+    </style>
+</head>
+<body class="p-4 md:p-8 font-sans text-slate-800">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between fade-in">
+            <a href="index.html" class="flex items-center text-slate-500 hover:text-blue-600 transition-colors bg-white/70 px-4 py-2 rounded-full shadow-sm">
+                <i class="fas fa-arrow-left mr-2"></i> กลับหน้าหลัก
+            </a>
+            <div class="text-right">
+                <h1 class="text-2xl md:text-3xl font-bold text-gradient">รายการออเดอร์ทั้งหมด</h1>
+                <p class="text-sm text-slate-500" id="result-count">กำลังโหลด...</p>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="glass-card p-4 md:p-6 fade-in" style="animation-delay:0.1s;">
+            <div class="flex flex-col md:flex-row gap-4 items-center">
+                <div class="relative w-full md:w-96">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <input id="searchInput" type="text" class="bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 block w-full pl-10 p-2.5 outline-none transition-all" placeholder="ค้นหาหมายเลข Order...">
+                </div>
+                <div class="flex w-full md:w-auto gap-2 flex-wrap">
+                    <button id="filter-all"   class="filter-btn active border text-sm font-medium px-4 py-2 rounded-lg whitespace-nowrap shadow-sm transition-colors bg-blue-600 text-white border-blue-600" onclick="setFilter('all')">ทั้งหมด</button>
+                    <button id="filter-income" class="filter-btn border border-slate-200 text-slate-600 text-sm font-medium px-4 py-2 rounded-lg whitespace-nowrap shadow-sm transition-colors bg-white" onclick="setFilter('income')">
+                        <i class="fas fa-arrow-down mr-1 text-green-500"></i> รายรับ (เงินเข้า)
+                    </button>
+                    <button id="filter-refund" class="filter-btn border border-slate-200 text-slate-600 text-sm font-medium px-4 py-2 rounded-lg whitespace-nowrap shadow-sm transition-colors bg-white" onclick="setFilter('refund')">
+                        <i class="fas fa-arrow-up mr-1 text-red-500"></i> คืนเงิน (เงินออก)
+                    </button>
+                    <button onclick="clearSearch()" class="border border-slate-200 text-slate-500 text-sm font-medium px-4 py-2 rounded-lg whitespace-nowrap shadow-sm transition-colors bg-white hover:bg-slate-50">
+                        <i class="fas fa-rotate-left mr-1"></i> รีเซ็ต
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Card -->
+        <div class="glass-card overflow-hidden fade-in" style="animation-delay:0.2s;">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50/80">
+                            <th class="py-4 px-6 text-sm font-medium text-slate-500">วัน / เวลา</th>
+                            <th class="py-4 px-6 text-sm font-medium text-slate-500">หมายเลขรายการ (Order)</th>
+                            <th class="py-4 px-6 text-sm font-medium text-slate-500 text-center">ช่องทาง</th>
+                            <th class="py-4 px-6 text-sm font-medium text-slate-500 text-center">ประเภท</th>
+                            <th class="py-4 px-6 text-sm font-medium text-slate-500 text-right">ยอดเงิน (THB)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="txn-tbody" class="divide-y divide-slate-100">
+                        <!-- Rows injected by JS -->
+                    </tbody>
+                </table>
+                <!-- Empty state -->
+                <div id="empty-state" class="hidden py-16 text-center text-slate-400">
+                    <i class="fas fa-folder-open text-4xl mb-3"></i>
+                    <p class="font-medium">ไม่พบรายการที่ตรงกับการค้นหา</p>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="px-6 py-4 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-3 bg-slate-50/50 rounded-b-3xl">
+                <p id="pagination-info" class="text-sm text-slate-500"></p>
+                <div id="pagination-btns" class="flex flex-wrap gap-1 justify-center"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ==================== DATA ====================
+        // Default data (shown before any Excel upload)
+        const DEFAULT_DATA = [
+            { date:'30 เม.ย. 69', time:'14:32 น.', order:'Shop/0084', method:'เงินสด',    isIncome:true,  amount:3200 },
+            { date:'30 เม.ย. 69', time:'14:15 น.', order:'Shop/0053', method:'เงินโอน',   isIncome:false, amount:500  },
+            { date:'30 เม.ย. 69', time:'13:55 น.', order:'Shop/0063', method:'เงินสด',    isIncome:true,  amount:1750 },
+            { date:'30 เม.ย. 69', time:'12:45 น.', order:'Shop/0027', method:'Prompt Pay', isIncome:true,  amount:1080 },
+            { date:'30 เม.ย. 69', time:'11:20 น.', order:'Shop/0020', method:'เงินสด',    isIncome:false, amount:450  },
+            { date:'30 เม.ย. 69', time:'10:05 น.', order:'Shop/0014', method:'เงินโอน',   isIncome:true,  amount:3100 },
+            { date:'29 เม.ย. 69', time:'18:30 น.', order:'Shop/0080', method:'เงินสด',    isIncome:true,  amount:750  },
+            { date:'29 เม.ย. 69', time:'17:00 น.', order:'Shop/0050', method:'เงินโอน',   isIncome:false, amount:240  },
+            { date:'29 เม.ย. 69', time:'16:12 น.', order:'Shop/0094', method:'เงินโอน',   isIncome:true,  amount:2160 },
+            { date:'29 เม.ย. 69', time:'14:50 น.', order:'Shop/0012', method:'เงินโอน',   isIncome:true,  amount:2540 },
+            { date:'29 เม.ย. 69', time:'13:30 น.', order:'Shop/0055', method:'เงินโอน',   isIncome:false, amount:750  },
+            { date:'29 เม.ย. 69', time:'11:05 น.', order:'Shop/0009', method:'Prompt Pay', isIncome:true,  amount:890  },
+            { date:'28 เม.ย. 69', time:'19:40 น.', order:'Shop/0025', method:'เงินสด',    isIncome:true,  amount:1500 },
+            { date:'28 เม.ย. 69', time:'18:10 น.', order:'Shop/0025', method:'เงินสด',    isIncome:false, amount:1500 },
+            { date:'28 เม.ย. 69', time:'15:45 น.', order:'Shop/0043', method:'เงินโอน',   isIncome:true,  amount:3230 },
+            { date:'28 เม.ย. 69', time:'14:20 น.', order:'Shop/0086', method:'เงินโอน',   isIncome:true,  amount:1930 },
+            { date:'28 เม.ย. 69', time:'11:00 น.', order:'Shop/0008', method:'เงินโอน',   isIncome:true,  amount:4200 },
+            { date:'28 เม.ย. 69', time:'09:30 น.', order:'Shop/0015', method:'เงินสด',    isIncome:false, amount:390  },
+            { date:'27 เม.ย. 69', time:'20:00 น.', order:'Shop/0047', method:'เงินสด',    isIncome:true,  amount:1320 },
+            { date:'27 เม.ย. 69', time:'18:50 น.', order:'Shop/0082', method:'เงินโอน',   isIncome:true,  amount:3680 },
+            { date:'27 เม.ย. 69', time:'16:40 น.', order:'Shop/0071', method:'เงินโอน',   isIncome:true,  amount:2300 },
+            { date:'27 เม.ย. 69', time:'14:15 น.', order:'Shop/0070', method:'เงินโอน',   isIncome:true,  amount:1700 },
+            { date:'27 เม.ย. 69', time:'11:30 น.', order:'Shop/0011', method:'เงินสด',    isIncome:false, amount:30   },
+            { date:'27 เม.ย. 69', time:'09:00 น.', order:'Shop/0010', method:'เงินสด',    isIncome:true,  amount:980  },
+        ];
+
+        // Load from localStorage (saved by index.html after Excel upload), else fall back to default
+        let ALL_DATA;
+        try {
+            const saved = localStorage.getItem('salesData');
+            ALL_DATA = saved ? JSON.parse(saved) : DEFAULT_DATA;
+        } catch(e) {
+            ALL_DATA = DEFAULT_DATA;
+        }
+
+        // Helper: derive badge color from method name
+        function methodColor(method) {
+            if (method === 'เงินสด') return 'blue';
+            if (method === 'เงินโอน') return 'purple';
+            if (String(method).toLowerCase().startsWith('prompt')) return 'green';
+            return 'slate';
+        }
+
+        const PAGE_SIZE = 10;
+        let currentPage = 1;
+        let activeFilter = 'all';
+        let searchQuery = '';
+
+        function fmt(n) {
+            return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(n);
+        }
+
+        function getMethodBadge(method) {
+            const colors = {
+                blue:   'bg-blue-100 text-blue-700',
+                purple: 'bg-purple-100 text-purple-700',
+                green:  'bg-green-100 text-green-700',
+                slate:  'bg-slate-100 text-slate-700'
+            };
+            const c = methodColor(method);
+            return `<span class="${colors[c]} text-xs px-2.5 py-1 rounded-md font-medium">${method}</span>`;
+        }
+
+        function filteredData() {
+            return ALL_DATA.filter(item => {
+                const matchFilter = activeFilter === 'all' || (activeFilter === 'income' && item.isIncome) || (activeFilter === 'refund' && !item.isIncome);
+                const matchSearch = searchQuery === '' || (item.order || '').toLowerCase().includes(searchQuery.toLowerCase());
+                return matchFilter && matchSearch;
+            });
+        }
+
+
+        function render() {
+            const data = filteredData();
+            const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+            if (currentPage > totalPages) currentPage = 1;
+
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const pageData = data.slice(start, start + PAGE_SIZE);
+
+            const tbody = document.getElementById('txn-tbody');
+            tbody.innerHTML = '';
+
+            const emptyState = document.getElementById('empty-state');
+            if (pageData.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            pageData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition-colors';
+                const amountClass = item.isIncome ? 'text-green-600' : 'text-red-500';
+                const amountPrefix = item.isIncome ? '+' : '-';
+                const iconClass = item.isIncome ? 'fa-arrow-down' : 'fa-arrow-up';
+                const typeBadge = item.isIncome
+                    ? `<span class="inline-flex items-center text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full"><i class="fas ${iconClass} mr-1"></i> รายรับ</span>`
+                    : `<span class="inline-flex items-center text-xs font-medium text-red-600 bg-red-50 px-2.5 py-1 rounded-full"><i class="fas ${iconClass} mr-1"></i> คืนเงิน</span>`;
+
+                tr.innerHTML = `
+                    <td class="py-4 px-6 nowrap">
+                        <p class="font-bold text-slate-700 nowrap">${item.date}</p>
+                        <p class="text-xs text-slate-500 mt-0.5 nowrap"><i class="far fa-clock mr-1"></i>${item.time}</p>
+                    </td>
+                    <td class="py-4 px-6 font-medium text-slate-700">${item.order}</td>
+                    <td class="py-4 px-6 text-center">${getMethodBadge(item.method, item.methodColor)}</td>
+                    <td class="py-4 px-6 text-center">${typeBadge}</td>
+                    <td class="py-4 px-6 text-right font-bold ${amountClass} text-lg">${amountPrefix}${fmt(item.amount)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Result count
+            document.getElementById('result-count').textContent = `แสดง ${data.length === 0 ? 0 : start + 1}–${Math.min(start + PAGE_SIZE, data.length)} จาก ${data.length} รายการ`;
+
+            // Pagination info
+            document.getElementById('pagination-info').textContent = `หน้า ${currentPage} จาก ${totalPages} (ทั้งหมด ${data.length} รายการ)`;
+
+            // Pagination buttons
+            renderPagination(totalPages);
+        }
+
+        function renderPagination(totalPages) {
+            const container = document.getElementById('pagination-btns');
+            container.innerHTML = '';
+
+            const btn = (label, page, active = false, disabled = false) => {
+                const b = document.createElement('button');
+                b.innerHTML = label;
+                if (active) b.className = 'w-9 h-9 flex items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-sm shadow';
+                else if (disabled) b.className = 'w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-300 bg-white text-sm cursor-not-allowed';
+                else b.className = 'w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 font-medium text-sm transition-colors';
+                if (!disabled && !active) b.onclick = () => { currentPage = page; render(); };
+                return b;
+            };
+
+            container.appendChild(btn('<i class="fas fa-chevron-left text-xs"></i>', currentPage - 1, false, currentPage === 1));
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (totalPages <= 7 || i === 1 || i === totalPages || Math.abs(i - currentPage) <= 1) {
+                    container.appendChild(btn(i, i, i === currentPage));
+                } else if (i === 2 && currentPage > 4) {
+                    const dots = document.createElement('span');
+                    dots.className = 'w-9 h-9 flex items-center justify-center text-slate-400 text-sm';
+                    dots.textContent = '...';
+                    container.appendChild(dots);
+                } else if (i === totalPages - 1 && currentPage < totalPages - 3) {
+                    const dots = document.createElement('span');
+                    dots.className = 'w-9 h-9 flex items-center justify-center text-slate-400 text-sm';
+                    dots.textContent = '...';
+                    container.appendChild(dots);
+                }
+            }
+
+            container.appendChild(btn('<i class="fas fa-chevron-right text-xs"></i>', currentPage + 1, false, currentPage === totalPages));
+        }
+
+        function setFilter(f) {
+            activeFilter = f;
+            currentPage = 1;
+            ['all', 'income', 'refund'].forEach(id => {
+                const el = document.getElementById('filter-' + id);
+                if (id === f) {
+                    el.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-600');
+                    el.classList.remove('text-slate-600', 'bg-white', 'border-slate-200');
+                } else {
+                    el.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-600');
+                    el.classList.add('text-slate-600', 'bg-white', 'border-slate-200');
+                }
+            });
+            render();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            searchQuery = '';
+            setFilter('all');
+        }
+
+        // Search debounce
+        let searchTimer;
+        document.getElementById('searchInput').addEventListener('input', e => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                searchQuery = e.target.value;
+                currentPage = 1;
+                render();
+            }, 250);
+        });
+
+        // Initial render
+        render();
+    </script>
+</body>
+</html>

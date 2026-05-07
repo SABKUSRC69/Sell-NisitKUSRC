@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Data Infographic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Include SheetJS for Excel Parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 900: '#1e3a8a' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .pro-card { 
+            background: #ffffff; 
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border-radius: 16px;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .pro-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        }
+
+        .fade-in { animation: fadeIn 0.8s ease-out forwards; opacity: 0; }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        
+        .nowrap { white-space: nowrap; }
+        /* Modal */
+        #txn-modal {
+            display: none;
+            position: fixed; inset: 0; z-index: 50;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            align-items: flex-end;
+        }
+        #txn-modal.open { display: flex; animation: fadeIn 0.2s ease; }
+        #modal-panel {
+            background: #f8fafc;
+            width: 100%; max-height: 92vh;
+            border-radius: 24px 24px 0 0;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to   { transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        #modal-body { overflow-y: auto; flex: 1; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen p-4 md:p-8 font-sans text-slate-800">
+
+    <div class="max-w-7xl mx-auto space-y-8">
+        
+        <!-- Header Section -->
+        <header class="flex flex-col md:flex-row items-center justify-between gap-6 fade-in bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="text-center md:text-left space-y-2">
+                <div class="inline-flex items-center px-3 py-1 rounded-md bg-slate-100 text-slate-600 font-medium text-xs mb-1 border border-slate-200">
+                    <i class="fas fa-chart-line mr-2"></i> ข้อมูลล่าสุดจากระบบ POS
+                </div>
+                <h1 class="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">สรุปยอดขาย <span class="text-slate-400 font-medium text-2xl ml-2">Sales Dashboard</span></h1>
+                <p class="text-slate-500">ภาพรวมสถิติการขายและช่องทางการชำระเงิน</p>
+            </div>
+            
+            <!-- Upload & Download Buttons -->
+            <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                <label for="excelUpload" class="cursor-pointer w-full md:w-auto px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-file-excel text-lg"></i>
+                    <span>อัปเดตข้อมูล Excel</span>
+                    <input type="file" id="excelUpload" class="hidden" accept=".xlsx, .xls">
+                </label>
+                <button id="downloadBtn" onclick="downloadUpdatedHTML()" class="hidden cursor-pointer w-full md:w-auto px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-download text-lg"></i>
+                    <span>ดาวน์โหลด HTML</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Key Metrics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Total Revenue -->
+            <div class="pro-card p-6 fade-in delay-1">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-500 font-medium text-sm">ยอดขายรวมทั้งหมด</p>
+                        <h3 class="text-3xl font-bold text-slate-800 mt-1">101,140 ฿</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-emerald-500 flex items-center justify-center text-white shadow-sm">
+                        <i class="fas fa-wallet text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4 text-sm text-emerald-600 flex items-center font-medium">
+                    <i class="fas fa-arrow-up mr-1"></i> 100% ของเป้าหมาย
+                </div>
+            </div>
+
+            <!-- Total Orders -->
+            <div class="pro-card p-6 fade-in delay-2">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-500 font-medium text-sm">จำนวนออเดอร์รวม</p>
+                        <h3 class="text-3xl font-bold text-slate-800 mt-1">140 รายการ</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-blue-500 flex items-center justify-center text-white shadow-sm">
+                        <i class="fas fa-shopping-cart text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4 text-sm text-blue-500 flex items-center font-medium">
+                    <i class="fas fa-box mr-1"></i> สินค้าถูกขายออกไปแล้ว
+                </div>
+            </div>
+
+            <!-- Avg Order Value -->
+            <div class="pro-card p-6 fade-in delay-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-500 font-medium text-sm">ยอดขายเฉลี่ยต่อบิล</p>
+                        <h3 class="text-3xl font-bold text-slate-800 mt-1">722 ฿</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-indigo-500 flex items-center justify-center text-white shadow-sm">
+                        <i class="fas fa-receipt text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4 text-sm text-indigo-500 flex items-center font-medium">
+                    <i class="fas fa-chart-bar mr-1"></i> มูลค่าต่อลูกค้า 1 ท่าน
+                </div>
+            </div>
+
+            <!-- Top Payment Method -->
+            <div class="pro-card p-6 fade-in delay-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-500 font-medium text-sm">ยอดนิยมอันดับ 1</p>
+                        <h3 class="text-3xl font-bold text-slate-800 mt-1">เงินโอน</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-amber-500 flex items-center justify-center text-white shadow-sm">
+                        <i class="fas fa-money-bill-transfer text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4 text-sm text-amber-600 flex items-center font-medium">
+                    <i class="fas fa-star mr-1"></i> ทำยอดได้สูงสุด
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Revenue by Payment Method (Doughnut Chart) -->
+            <div class="pro-card p-6 md:p-8 fade-in delay-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-slate-800">สัดส่วนยอดขายตามช่องทาง</h2>
+                    <div class="bg-slate-100 p-2 rounded-lg text-slate-500"><i class="fas fa-pie-chart"></i></div>
+                </div>
+                <div class="relative h-72">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+                <div class="mt-6 grid grid-cols-3 gap-4 text-center border-t border-slate-100 pt-6">
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">เงินโอน</p>
+                        <p class="text-lg font-bold text-slate-700">86,870 ฿</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">เงินสด</p>
+                        <p class="text-lg font-bold text-slate-700">10,989 ฿</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Prompt Pay</p>
+                        <p class="text-lg font-bold text-slate-700">3,281 ฿</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders by Payment Method (Bar Chart) -->
+            <div class="pro-card p-6 md:p-8 fade-in delay-3">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-slate-800">จำนวนออเดอร์เปรียบเทียบ</h2>
+                    <div class="bg-slate-100 p-2 rounded-lg text-slate-500"><i class="fas fa-chart-column"></i></div>
+                </div>
+                <div class="relative h-72">
+                    <canvas id="ordersChart"></canvas>
+                </div>
+                <div class="mt-6 flex flex-col space-y-3 border-t border-slate-100 pt-6">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span> <span class="text-sm font-medium">เงินสด (Cash)</span></div>
+                        <span class="font-bold text-slate-700">71 รายการ</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-purple-500 mr-2"></span> <span class="text-sm font-medium">เงินโอน (Transfer)</span></div>
+                        <span class="font-bold text-slate-700">66 รายการ</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span> <span class="text-sm font-medium">Prompt Pay</span></div>
+                        <span class="font-bold text-slate-700">3 รายการ</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail Table -->
+        <div class="pro-card p-6 md:p-8 fade-in delay-3">
+            <h2 class="text-xl font-bold text-slate-800 mb-6">รายละเอียดเจาะลึก (Sales Breakdown)</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-200">
+                            <th class="py-4 px-4 text-sm font-medium text-slate-500">ช่องทางการชำระเงิน</th>
+                            <th class="py-4 px-4 text-sm font-medium text-slate-500 text-center">จำนวนบิล (Orders)</th>
+                            <th class="py-4 px-4 text-sm font-medium text-slate-500 text-right">ยอดขาย (THB)</th>
+                            <th class="py-4 px-4 text-sm font-medium text-slate-500 text-right">สัดส่วนยอดขาย (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="breakdown-tbody">
+                        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                            <td class="py-4 px-4">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center mr-3">
+                                        <i class="fas fa-money-bill-transfer"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-slate-700">เงินโอน</p>
+                                        <p class="text-xs text-slate-500">Bank Transfer</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-4 text-center font-medium">66</td>
+                            <td class="py-4 px-4 text-right font-bold text-slate-800">86,870.00</td>
+                            <td class="py-4 px-4 text-right">
+                                <div class="flex items-center justify-end gap-3">
+                                    <span class="font-bold text-slate-700 w-12 text-right">85.9%</span>
+                                    <div class="w-24 h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                                        <div class="h-full bg-purple-500 rounded-full" style="width: 85.9%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                            <td class="py-4 px-4">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mr-3">
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-slate-700">เงินสด</p>
+                                        <p class="text-xs text-slate-500">Cash</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-4 text-center font-medium">71</td>
+                            <td class="py-4 px-4 text-right font-bold text-slate-800">10,989.00</td>
+                            <td class="py-4 px-4 text-right">
+                                <div class="flex items-center justify-end gap-3">
+                                    <span class="font-bold text-slate-700 w-12 text-right">10.9%</span>
+                                    <div class="w-24 h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                                        <div class="h-full bg-blue-500 rounded-full" style="width: 10.9%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="py-4 px-4">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 rounded-lg bg-green-100 text-green-600 flex items-center justify-center mr-3">
+                                        <i class="fas fa-qrcode"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-slate-700">Prompt Pay</p>
+                                        <p class="text-xs text-slate-500">QR Payment</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-4 text-center font-medium">3</td>
+                            <td class="py-4 px-4 text-right font-bold text-slate-800">3,281.00</td>
+                            <td class="py-4 px-4 text-right">
+                                <div class="flex items-center justify-end gap-3">
+                                    <span class="font-bold text-slate-700 w-12 text-right">3.2%</span>
+                                    <div class="w-24 h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                                        <div class="h-full bg-green-500 rounded-full" style="width: 3.2%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Daily Sales Summary -->
+        <div class="pro-card p-6 md:p-8 fade-in delay-3">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">สรุปยอดรายวัน <span class="text-slate-400 font-medium text-base ml-1">Daily Sales</span></h2>
+                    <p class="text-sm text-slate-500 mt-1">ยอดขายสุทธิแยกตามวัน (รายรับ หักคืนเงิน)</p>
+                </div>
+                <div class="bg-slate-100 p-2 rounded-lg text-slate-500"><i class="fas fa-calendar-alt"></i></div>
+            </div>
+            <div class="relative h-52 mb-6">
+                <canvas id="dailyChart"></canvas>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50/50">
+                            <th class="py-3 px-4 text-sm font-medium text-slate-500">วันที่</th>
+                            <th class="py-3 px-4 text-sm font-medium text-slate-500 text-center">จำนวนบิล</th>
+                            <th class="py-3 px-4 text-sm font-medium text-slate-500 text-right">
+                                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>เงินสด (฿)</span>
+                            </th>
+                            <th class="py-3 px-4 text-sm font-medium text-slate-500 text-right">
+                                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block"></span>เงินโอน (฿)</span>
+                            </th>
+                            <th class="py-3 px-4 text-sm font-medium text-slate-500 text-right">
+                                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>Prompt Pay (฿)</span>
+                            </th>
+                            <th class="py-3 px-4 text-sm font-medium text-slate-500 text-right">ยอดสุทธิ (฿)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="daily-tbody">
+                        <tr><td colspan="6" class="py-10 text-center text-slate-400"><i class="fas fa-calendar-plus text-3xl mb-2 block"></i>กรุณาอัปโหลดไฟล์ Excel เพื่อดูข้อมูลรายวัน</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="pro-card p-6 md:p-8 fade-in delay-3">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">ประวัติรายการล่าสุด (Recent Transactions)</h2>
+                    <p class="text-sm text-slate-500 mt-1">แสดงรายการเงินเข้า และการคืนเงิน (เงินออก)</p>
+                </div>
+                <button onclick="openTxnModal()" class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-100 bg-blue-50 px-4 py-2 rounded-full transition-colors flex items-center shadow-sm cursor-pointer">
+                    ดูทั้งหมด <i class="fas fa-chevron-right ml-2 text-xs"></i>
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50/50">
+                            <th class="py-4 px-4 text-sm font-medium text-slate-500 rounded-tl-lg">วัน / เวลา</th>
+                            <th class="py-4 px-4 text-sm font-medium text-slate-500">หมายเลขรายการ (Order)</th>
+                            <th class="py-4 px-4 text-sm font-medium text-slate-500 text-center">ช่องทาง</th>
+                            <th class="py-4 px-4 text-sm font-medium text-slate-500 text-center">ประเภท</th>
+                            <th class="py-4 px-4 text-sm font-medium text-slate-500 text-right rounded-tr-lg">ยอดเงิน (THB)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-tbody">
+                        <!-- Transaction 1: Income -->
+                        <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+                            <td class="py-3 px-4">
+                                <p class="font-bold text-slate-700">30 เม.ย. 69</p>
+                                <p class="text-xs text-slate-500 mt-0.5"><i class="far fa-clock mr-1"></i>14:32 น.</p>
+                            </td>
+                            <td class="py-3 px-4 font-medium text-slate-700">Shop/0084</td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-md font-medium">เงินสด</span>
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="inline-flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                                    <i class="fas fa-arrow-down mr-1"></i> รายรับ
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-right font-bold text-green-600 text-lg">+3,200.00</td>
+                        </tr>
+                        
+                        <!-- Transaction 2: Expense/Refund -->
+                        <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+                            <td class="py-3 px-4">
+                                <p class="font-bold text-slate-700">30 เม.ย. 69</p>
+                                <p class="text-xs text-slate-500 mt-0.5"><i class="far fa-clock mr-1"></i>14:15 น.</p>
+                            </td>
+                            <td class="py-3 px-4 font-medium text-slate-700">Shop/0053</td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="bg-purple-100 text-purple-700 text-xs px-2.5 py-1 rounded-md font-medium">เงินโอน</span>
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="inline-flex items-center text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                                    <i class="fas fa-arrow-up mr-1"></i> คืนเงิน
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-right font-bold text-red-500 text-lg">-500.00</td>
+                        </tr>
+
+                        <!-- Transaction 3: Income -->
+                        <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+                            <td class="py-3 px-4">
+                                <p class="font-bold text-slate-700">30 เม.ย. 69</p>
+                                <p class="text-xs text-slate-500 mt-0.5"><i class="far fa-clock mr-1"></i>12:45 น.</p>
+                            </td>
+                            <td class="py-3 px-4 font-medium text-slate-700">Shop/0027</td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-md font-medium">Prompt Pay</span>
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="inline-flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                                    <i class="fas fa-arrow-down mr-1"></i> รายรับ
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-right font-bold text-green-600 text-lg">+1,080.00</td>
+                        </tr>
+
+                        <!-- Transaction 4: Expense/Refund -->
+                        <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+                            <td class="py-3 px-4">
+                                <p class="font-bold text-slate-700">30 เม.ย. 69</p>
+                                <p class="text-xs text-slate-500 mt-0.5"><i class="far fa-clock mr-1"></i>11:20 น.</p>
+                            </td>
+                            <td class="py-3 px-4 font-medium text-slate-700">Shop/0020</td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-md font-medium">เงินสด</span>
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="inline-flex items-center text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                                    <i class="fas fa-arrow-up mr-1"></i> คืนเงิน
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-right font-bold text-red-500 text-lg">-450.00</td>
+                        </tr>
+
+                        <!-- Transaction 5: Income -->
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                            <td class="py-3 px-4">
+                                <p class="font-bold text-slate-700">30 เม.ย. 69</p>
+                                <p class="text-xs text-slate-500 mt-0.5"><i class="far fa-clock mr-1"></i>10:05 น.</p>
+                            </td>
+                            <td class="py-3 px-4 font-medium text-slate-700">Shop/0014</td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="bg-purple-100 text-purple-700 text-xs px-2.5 py-1 rounded-md font-medium">เงินโอน</span>
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="inline-flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                                    <i class="fas fa-arrow-down mr-1"></i> รายรับ
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-right font-bold text-green-600 text-lg">+3,100.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Transactions Modal -->
+    <div id="txn-modal" onclick="closeTxnModalOutside(event)">
+        <div id="modal-panel">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">รายการออเดอร์ทั้งหมด</h2>
+                    <p class="text-sm text-slate-500" id="modal-result-count">กำลังโหลด...</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="sort-toggle-btn" onclick="toggleModalSort()" class="flex items-center gap-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-sort-amount-down text-xs" id="sort-icon"></i>
+                        <span id="sort-label">ใหม่สุดก่อน</span>
+                    </button>
+                    <button onclick="closeTxnModal()" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Search & Filter -->
+            <div class="px-6 py-4 bg-white border-b border-slate-100">
+                <div class="flex flex-col sm:flex-row gap-3 items-center">
+                    <div class="relative w-full sm:w-80">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><i class="fas fa-search text-sm"></i></div>
+                        <input id="modal-search" type="text" class="bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-2 focus:ring-blue-400 block w-full pl-9 p-2.5 outline-none" placeholder="ค้นหาหมายเลข Order...">
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button id="mf-all"    class="mf-btn text-sm px-4 py-2 rounded-lg font-medium border shadow-sm transition-colors bg-blue-600 text-white border-blue-600 whitespace-nowrap" onclick="setMFilter('all')">ทั้งหมด</button>
+                        <button id="mf-income" class="mf-btn text-sm px-4 py-2 rounded-lg font-medium border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors whitespace-nowrap" onclick="setMFilter('income')"><i class="fas fa-arrow-down mr-1 text-green-500"></i> รายรับ</button>
+                        <button id="mf-refund" class="mf-btn text-sm px-4 py-2 rounded-lg font-medium border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors whitespace-nowrap" onclick="setMFilter('refund')"><i class="fas fa-arrow-up mr-1 text-red-500"></i> คืนเงิน</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Table -->
+            <div id="modal-body">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[650px]">
+                        <thead class="sticky top-0 bg-slate-50 z-10">
+                            <tr class="border-b border-slate-200">
+                                <th class="py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider">วัน / เวลา</th>
+                                <th class="py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Order</th>
+                                <th class="py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">ช่องทาง</th>
+                                <th class="py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">ประเภท</th>
+                                <th class="py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">ยอดเงิน (฿)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-tbody" class="divide-y divide-slate-100 bg-white"></tbody>
+                    </table>
+                    <div id="modal-empty" class="hidden py-16 text-center text-slate-400">
+                        <i class="fas fa-folder-open text-4xl mb-3"></i>
+                        <p class="font-medium">ไม่พบรายการที่ตรงกัน</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Pagination -->
+            <div class="px-6 py-3 border-t border-slate-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-2">
+                <p id="modal-pag-info" class="text-sm text-slate-500"></p>
+                <div id="modal-pag-btns" class="flex flex-wrap gap-1 justify-center"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== SHARED STATE ====================
+        let allTransactions = []; // full list from Excel or default
+
+        // Store current dashboard state
+        let dashboardData = {
+            totalRevenue: 101140,
+            totalOrders: 140,
+            avgOrderValue: 722,
+            topPayment: 'เงินโอน',
+            revenueByMethod: { 'เงินโอน': 86870, 'เงินสด': 10989, 'Prompt Pay': 3281 },
+            ordersByMethod: { 'เงินสด': 71, 'เงินโอน': 66, 'Prompt Pay': 3 },
+            recentTransactions: [
+                { date: '30 เม.ย. 69', time: '14:32 น.', order: 'Shop/0084', method: 'เงินสด', type: 'รายรับ', amount: 3200, isIncome: true },
+                { date: '30 เม.ย. 69', time: '14:15 น.', order: 'Shop/0053', method: 'เงินโอน', type: 'คืนเงิน', amount: 500, isIncome: false },
+                { date: '30 เม.ย. 69', time: '12:45 น.', order: 'Shop/0027', method: 'Prompt Pay', type: 'รายรับ', amount: 1080, isIncome: true },
+                { date: '30 เม.ย. 69', time: '11:20 น.', order: 'Shop/0020', method: 'เงินสด', type: 'คืนเงิน', amount: 450, isIncome: false },
+                { date: '30 เม.ย. 69', time: '10:05 น.', order: 'Shop/0014', method: 'เงินโอน', type: 'รายรับ', amount: 3100, isIncome: true }
+            ]
+        };
+
+        // Common Chart Defaults
+        Chart.defaults.font.family = "'Prompt', sans-serif";
+        Chart.defaults.color = '#64748b';
+
+        let revenueChart, ordersChart, dailyChart;
+
+        function updateUI() {
+            // Update Metrics
+            const metricValueElements = document.querySelectorAll('.pro-card h3');
+            if (metricValueElements.length >= 4) {
+                metricValueElements[0].textContent = new Intl.NumberFormat('th-TH').format(dashboardData.totalRevenue) + ' ฿';
+                metricValueElements[1].textContent = dashboardData.totalOrders + ' รายการ';
+                metricValueElements[2].textContent = new Intl.NumberFormat('th-TH').format(dashboardData.avgOrderValue) + ' ฿';
+                metricValueElements[3].textContent = dashboardData.topPayment;
+            }
+
+            // Update Breakdown Table Summary Text
+            const breakdownTexts = document.querySelectorAll('.uppercase.tracking-wider + p');
+            breakdownTexts[0].textContent = new Intl.NumberFormat('th-TH').format(dashboardData.revenueByMethod['เงินโอน'] || 0) + ' ฿';
+            breakdownTexts[1].textContent = new Intl.NumberFormat('th-TH').format(dashboardData.revenueByMethod['เงินสด'] || 0) + ' ฿';
+            breakdownTexts[2].textContent = new Intl.NumberFormat('th-TH').format(dashboardData.revenueByMethod['Prompt Pay'] || 0) + ' ฿';
+
+            // Update Detailed Breakdown Table using IDs
+            const updateRow = (rowIdx, amount, count, total) => {
+                const tbody = document.getElementById('breakdown-tbody');
+                const rows = tbody.querySelectorAll('tr');
+                if (!rows[rowIdx]) return;
+                const cells = rows[rowIdx].querySelectorAll('td');
+                cells[1].textContent = count;
+                cells[2].textContent = new Intl.NumberFormat('th-TH', {minimumFractionDigits:2}).format(amount);
+                const percent = total > 0 ? (amount / total * 100).toFixed(1) : 0;
+                cells[3].querySelector('span').textContent = percent + '%';
+                cells[3].querySelector('.h-full').style.width = percent + '%';
+            };
+            
+            updateRow(0, dashboardData.revenueByMethod['เงินโอน'] || 0, dashboardData.ordersByMethod['เงินโอน'] || 0, dashboardData.totalRevenue);
+            updateRow(1, dashboardData.revenueByMethod['เงินสด'] || 0, dashboardData.ordersByMethod['เงินสด'] || 0, dashboardData.totalRevenue);
+            updateRow(2, dashboardData.revenueByMethod['Prompt Pay'] || 0, dashboardData.ordersByMethod['Prompt Pay'] || 0, dashboardData.totalRevenue);
+
+            // Update Charts
+            revenueChart.data.datasets[0].data = [
+                dashboardData.revenueByMethod['เงินโอน'] || 0,
+                dashboardData.revenueByMethod['เงินสด'] || 0,
+                dashboardData.revenueByMethod['Prompt Pay'] || 0
+            ];
+            revenueChart.update();
+
+            ordersChart.data.datasets[0].data = [
+                dashboardData.ordersByMethod['เงินสด'] || 0,
+                dashboardData.ordersByMethod['เงินโอน'] || 0,
+                dashboardData.ordersByMethod['Prompt Pay'] || 0
+            ];
+            ordersChart.update();
+            
+            // Update Recent Transactions Summary — use ID to avoid wrong tbody selection
+            const recentTbody = document.getElementById('recent-tbody');
+            recentTbody.innerHTML = '';
+            dashboardData.recentTransactions.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-100 hover:bg-slate-50/80 transition-colors';
+                const methodColor = item.method === 'เงินสด' ? 'blue' : (item.method === 'เงินโอน' ? 'purple' : 'green');
+                const typeClass = item.isIncome ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
+                const typeIcon = item.isIncome ? 'fa-arrow-down' : 'fa-arrow-up';
+                const amountClass = item.isIncome ? 'text-green-600' : 'text-red-500';
+                const amountPrefix = item.isIncome ? '+' : '-';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4">
+                        <p class="font-bold text-slate-700">${item.date}</p>
+                        <p class="text-xs text-slate-500 mt-0.5"><i class="far fa-clock mr-1"></i>${item.time}</p>
+                    </td>
+                    <td class="py-3 px-4 font-medium text-slate-700">${item.order}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="bg-${methodColor}-100 text-${methodColor}-700 text-xs px-2.5 py-1 rounded-md font-medium">${item.method}</span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-flex items-center text-xs font-medium ${typeClass} px-2 py-1 rounded-full">
+                            <i class="fas ${typeIcon} mr-1"></i> ${item.type}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-right font-bold ${amountClass} text-lg">${amountPrefix}${new Intl.NumberFormat('th-TH', {minimumFractionDigits:2}).format(item.amount)}</td>
+                `;
+                recentTbody.appendChild(tr);
+            });
+            updateDailySummary();
+        }
+
+        function initCharts() {
+            // 1. Revenue Doughnut Chart
+            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+            revenueChart = new Chart(revenueCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['เงินโอน', 'เงินสด', 'Prompt Pay'],
+                    datasets: [{
+                        data: [86870, 10989, 3281],
+                        backgroundColor: ['#8b5cf6', '#3b82f6', '#10b981'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            padding: 12,
+                            titleFont: { size: 14, family: "'Prompt', sans-serif" },
+                            bodyFont: { size: 14, family: "'Prompt', sans-serif" },
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed !== null) label += new Intl.NumberFormat('th-TH').format(context.parsed) + ' ฿';
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Orders Bar Chart
+            const ordersCtx = document.getElementById('ordersChart').getContext('2d');
+            ordersChart = new Chart(ordersCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['เงินสด', 'เงินโอน', 'Prompt Pay'],
+                    datasets: [{
+                        label: 'จำนวนรายการ',
+                        data: [71, 66, 3],
+                        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
+                        borderRadius: 8,
+                        barThickness: 40
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            padding: 12,
+                            titleFont: { size: 14, family: "'Prompt', sans-serif" },
+                            bodyFont: { size: 14, family: "'Prompt', sans-serif" },
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) label += new Intl.NumberFormat('th-TH').format(context.parsed.y) + ' รายการ';
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(226, 232, 240, 0.5)', drawBorder: false },
+                            ticks: {
+                                font: { family: "'Prompt', sans-serif" },
+                                callback: function(value) { return new Intl.NumberFormat('th-TH').format(value); }
+                            }
+                        },
+                        x: { grid: { display: false, drawBorder: false }, ticks: { font: { family: "'Prompt', sans-serif" } } }
+                    }
+                }
+            });
+
+            // 3. Daily Sales Stacked Bar Chart (per payment method)
+            const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+            dailyChart = new Chart(dailyCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'เงินสด',     data: [], backgroundColor: 'rgba(59,130,246,0.85)',  borderRadius: 4, maxBarThickness: 60 },
+                        { label: 'เงินโอน',    data: [], backgroundColor: 'rgba(139,92,246,0.85)', borderRadius: 4, maxBarThickness: 60 },
+                        { label: 'Prompt Pay', data: [], backgroundColor: 'rgba(16,185,129,0.85)', borderRadius: 4, maxBarThickness: 60 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: { font: { family: "'Prompt',sans-serif", size: 12 }, usePointStyle: true, pointStyleWidth: 10 }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.9)',
+                            padding: 12,
+                            titleFont: { size: 13, family: "'Prompt',sans-serif" },
+                            bodyFont:  { size: 13, family: "'Prompt',sans-serif" },
+                            callbacks: {
+                                label: ctx => '  ' + ctx.dataset.label + ': ' + new Intl.NumberFormat('th-TH',{minimumFractionDigits:2}).format(ctx.parsed.y) + ' ฿'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true, grid: { display: false, drawBorder: false }, ticks: { font: { family: "'Prompt',sans-serif" } } },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: { color: 'rgba(226,232,240,0.5)', drawBorder: false },
+                            ticks: { font: { family: "'Prompt',sans-serif" }, callback: v => new Intl.NumberFormat('th-TH').format(v) }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize on load
+        window.onload = async function() {
+            initCharts();
+
+            // 1. Try auto-loading from local server (when opened via http://localhost:8080)
+            if (location.protocol === 'http:' || location.protocol === 'https:') {
+                try {
+                    const res = await fetch('pos.payment.xlsx', { cache: 'no-store' });
+                    if (res.ok) {
+                        const arrayBuffer = await res.arrayBuffer();
+                        processExcel(arrayBuffer);
+                        console.log('Auto-loaded pos.payment.xlsx from server');
+                        return;
+                    }
+                } catch(e) {
+                    console.log('Server fetch failed, trying localStorage:', e.message);
+                }
+            }
+
+            // 2. Fall back to localStorage (saved from a previous upload)
+            const saved = localStorage.getItem('salesData');
+            if (saved) {
+                try {
+                    const transactions = JSON.parse(saved);
+                    const stats = recomputeStats(transactions);
+                    applyStats(stats, transactions);
+                    updateUI();
+                    console.log('Restored data from localStorage');
+                } catch(e) {
+                    console.warn('Could not restore saved sales data:', e);
+                    localStorage.removeItem('salesData');
+                }
+            }
+            // 3. If neither, the default hardcoded data is already shown
+        };
+
+        // Shared function: process an ArrayBuffer of an Excel file
+        function processExcel(arrayBuffer) {
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(worksheet);
+
+            if (json.length === 0) { alert('ไม่พบข้อมูลในไฟล์ Excel'); return; }
+
+            let stats = {
+                totalRevenue: 0, totalOrders: 0,
+                revenueByMethod: { 'เงินโอน': 0, 'เงินสด': 0, 'Prompt Pay': 0 },
+                ordersByMethod:  { 'เงินโอน': 0, 'เงินสด': 0, 'Prompt Pay': 0 },
+                transactions: []
+            };
+
+            function excelSerialToDateTime(serial) {
+                if (!serial || isNaN(serial)) return { date: String(serial || 'N/A'), time: '-', rawSerial: 0 };
+                // Date part (integer)
+                const dayPart = Math.floor(serial);
+                const date = new Date((dayPart - 25569) * 86400 * 1000);
+                const thaiYear = date.getFullYear() + 543 - 2500;
+                const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+                const dateStr = `${date.getDate()} ${months[date.getMonth()]} ${thaiYear}`;
+                
+                // Time part (decimal fraction of 24 hours)
+                const timeFraction = serial - dayPart;
+                const totalSeconds = Math.round(timeFraction * 86400);
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const timeStr = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')} น.`;
+                
+                return { date: dateStr, time: timeStr, rawSerial: serial };
+            }
+
+            function normalizeMethod(raw) {
+                const r = String(raw || '').trim();
+                if (r.startsWith('เงินโอน')) return 'เงินโอน';
+                if (r.startsWith('เงินสด'))  return 'เงินสด';
+                if (r.toLowerCase().startsWith('prompt')) return 'Prompt Pay';
+                return r || 'ไม่ระบุ';
+            }
+
+            json.forEach(row => {
+                const rawMethod = String(row['วิธีการจ่ายเงิน'] || '').trim();
+                const orderId   = String(row['Order'] || '').trim();
+                const rawAmount = row['จำนวน'];
+
+                // ข้ามแถวสรุป (Summary rows) เช่น "เงินโอน (66)" หรือ "Prompt Pay (3)"
+                const isSummaryRow = /\(\d+\)/.test(rawMethod) || orderId === '' || orderId === 'N/A';
+                if (isSummaryRow) return;
+
+                const method = normalizeMethod(rawMethod);
+                const amount = typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/,/g,'')) || 0;
+                const isIncome = amount >= 0;
+                const rawDate = row['วันที่'];
+                
+                let dateStr = 'N/A', timeStr = '-', rawSerial = 0;
+                if (typeof rawDate === 'number') {
+                    const dt = excelSerialToDateTime(rawDate);
+                    dateStr = dt.date;
+                    timeStr = dt.time;
+                    rawSerial = dt.rawSerial;
+                } else {
+                    dateStr = String(rawDate || 'N/A');
+                }
+
+                stats.totalOrders++;
+                stats.totalRevenue += amount;
+                if (stats.revenueByMethod[method] !== undefined) {
+                    stats.revenueByMethod[method] += amount;
+                    stats.ordersByMethod[method]++;
+                }
+                stats.transactions.push({ date: dateStr, time: timeStr, rawSerial, order: orderId, method, type: isIncome ? 'รายรับ' : 'คืนเงิน', amount: Math.abs(amount), isIncome });
+            });
+
+            applyStats(stats, stats.transactions);
+            localStorage.setItem('salesData', JSON.stringify(stats.transactions));
+            updateUI();
+        }
+
+        // Apply aggregated stats to dashboardData
+        function applyStats(stats, transactions) {
+            allTransactions = transactions; // keep full list for the modal
+            dashboardData.totalRevenue = stats.totalRevenue;
+            dashboardData.totalOrders  = stats.totalOrders;
+            dashboardData.avgOrderValue = stats.totalOrders > 0 ? Math.round(stats.totalRevenue / stats.totalOrders) : 0;
+            dashboardData.revenueByMethod = stats.revenueByMethod;
+            dashboardData.ordersByMethod  = stats.ordersByMethod;
+            let maxRev = -Infinity;
+            for (let m in stats.revenueByMethod) {
+                if (stats.revenueByMethod[m] > maxRev) { maxRev = stats.revenueByMethod[m]; dashboardData.topPayment = m; }
+            }
+            
+            // เรียงลำดับรายการล่าสุดตาม Timeline (ใหม่สุดขึ้นก่อน) ใช้ rawSerial ถ้ามี
+            const sortedTxns = [...transactions].sort((a, b) => {
+                const aKey = a.rawSerial || parseThaiDateKey(a.date);
+                const bKey = b.rawSerial || parseThaiDateKey(b.date);
+                return bKey - aKey;
+            });
+            dashboardData.recentTransactions = sortedTxns.slice(0, 5);
+        }
+
+        // Re-aggregate stats from stored transactions
+        function recomputeStats(transactions) {
+            const stats = {
+                totalRevenue: 0, totalOrders: 0,
+                revenueByMethod: { 'เงินโอน': 0, 'เงินสด': 0, 'Prompt Pay': 0 },
+                ordersByMethod:  { 'เงินโอน': 0, 'เงินสด': 0, 'Prompt Pay': 0 },
+            };
+            transactions.forEach(t => {
+                const signed = t.isIncome ? t.amount : -t.amount;
+                stats.totalOrders++;
+                stats.totalRevenue += signed;
+                if (stats.revenueByMethod[t.method] !== undefined) {
+                    stats.revenueByMethod[t.method] += signed;
+                    stats.ordersByMethod[t.method]++;
+                }
+            });
+            return stats;
+        }
+
+        // Group transactions by day and compute income/refund per day (with per-method breakdown)
+        function computeDailySales(transactions) {
+            const map = {};
+            transactions.forEach(t => {
+                const dayKey = t.rawSerial ? Math.floor(t.rawSerial) : t.date;
+                if (!map[dayKey]) {
+                    map[dayKey] = {
+                        date: t.date,
+                        orders: 0,
+                        income: 0,
+                        refund: 0,
+                        cash: 0,
+                        transfer: 0,
+                        promptpay: 0,
+                        rawKey: t.rawSerial ? Math.floor(t.rawSerial) : parseThaiDateKey(t.date)
+                    };
+                }
+                const signed = t.isIncome ? t.amount : -t.amount;
+                if (t.isIncome) { map[dayKey].income += t.amount; }
+                else            { map[dayKey].refund += t.amount; }
+                if (t.method === 'เงินสด')    map[dayKey].cash      += signed;
+                else if (t.method === 'เงินโอน') map[dayKey].transfer  += signed;
+                else if (t.method === 'Prompt Pay') map[dayKey].promptpay += signed;
+                map[dayKey].orders++;
+            });
+            return Object.values(map).sort((a, b) => a.rawKey - b.rawKey);
+        }
+
+        // Render the daily summary table + stacked chart
+        function updateDailySummary() {
+            const data = computeDailySales(allTransactions);
+            const tbody = document.getElementById('daily-tbody');
+            if (!tbody) return;
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-slate-400"><i class="fas fa-calendar-plus text-3xl mb-2 block"></i>กรุณาอัปโหลดไฟล์ Excel เพื่อดูข้อมูลรายวัน</td></tr>`;
+                if (dailyChart) {
+                    dailyChart.data.labels = [];
+                    dailyChart.data.datasets.forEach(ds => ds.data = []);
+                    dailyChart.update();
+                }
+                return;
+            }
+
+            const fmt = n => new Intl.NumberFormat('th-TH', {minimumFractionDigits:2}).format(n);
+            const fmtNum = n => n !== 0 ? fmt(n) : '–';
+            const maxNet = Math.max(...data.map(d => d.income - d.refund), 1);
+
+            tbody.innerHTML = '';
+            data.forEach(d => {
+                const net = d.income - d.refund;
+                const pct = Math.max(0, (net / maxNet) * 100).toFixed(1);
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-slate-700 whitespace-nowrap">${d.date}</td>
+                    <td class="py-3 px-4 text-center text-slate-600">${d.orders} บิล</td>
+                    <td class="py-3 px-4 text-right font-medium ${d.cash !== 0 ? 'text-blue-600' : 'text-slate-300'}">${fmtNum(d.cash)}</td>
+                    <td class="py-3 px-4 text-right font-medium ${d.transfer !== 0 ? 'text-purple-600' : 'text-slate-300'}">${fmtNum(d.transfer)}</td>
+                    <td class="py-3 px-4 text-right font-medium ${d.promptpay !== 0 ? 'text-emerald-600' : 'text-slate-300'}">${fmtNum(d.promptpay)}</td>
+                    <td class="py-3 px-4 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <span class="font-bold ${net >= 0 ? 'text-slate-800' : 'text-red-500'}">${fmt(net)}</span>
+                            <div class="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full rounded-full ${net >= 0 ? 'bg-indigo-500' : 'bg-red-400'}" style="width:${pct}%"></div>
+                            </div>
+                        </div>
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+
+            if (dailyChart) {
+                dailyChart.data.labels = data.map(d => d.date);
+                dailyChart.data.datasets[0].data = data.map(d => d.cash);
+                dailyChart.data.datasets[1].data = data.map(d => d.transfer);
+                dailyChart.data.datasets[2].data = data.map(d => d.promptpay);
+                dailyChart.update();
+            }
+        }
+
+        // Manual upload button
+        document.getElementById('excelUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                processExcel(evt.target.result);
+                // Show the download button after successful upload
+                document.getElementById('downloadBtn').classList.remove('hidden');
+                alert('อัปเดตข้อมูลเรียบร้อยแล้ว!\n\nกด "ดาวน์โหลด HTML" เพื่อรับไฟล์สำหรับ deploy บน Netlify');
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Download an updated index.html with the current data baked in
+        function downloadUpdatedHTML() {
+            // Get current page's full HTML
+            const originalHTML = document.documentElement.outerHTML;
+
+            // Serialize current data as JSON to embed
+            const dataJson = JSON.stringify(allTransactions);
+
+            // Inject a <script> block right after <head><script> that seeds localStorage
+            // so any browser opening the file immediately has the data
+            const seedScript = `<script>
+    // Auto-seeded data — generated ${new Date().toLocaleString('th-TH')}
+    try { localStorage.setItem('salesData', ${JSON.stringify(dataJson)}); } catch(e){}
+<\/script>`;
+
+            // Insert seed script right after <head>
+            const updated = originalHTML.replace('<head>', '<head>\n' + seedScript);
+
+            // Trigger download
+            const blob = new Blob([updated], { type: 'text/html;charset=utf-8' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = 'index.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ==================== MODAL LOGIC ====================
+        const MODAL_PAGE_SIZE = 15;
+        let mFilter = 'all', mSearch = '', mPage = 1, mSortDesc = true;
+
+        // แปลงวันที่ภาษาไทย "30 เม.ย. 69" เป็นตัวเลขสำหรับเรียงลำดับ
+        function parseThaiDateKey(dateStr) {
+            const months = {'ม.ค.':1,'ก.พ.':2,'มี.ค.':3,'เม.ย.':4,'พ.ค.':5,'มิ.ย.':6,'ก.ค.':7,'ส.ค.':8,'ก.ย.':9,'ต.ค.':10,'พ.ย.':11,'ธ.ค.':12};
+            const m = String(dateStr || '').match(/(\d+)\s+([^\s]+)\s+(\d+)/);
+            if (!m) return 0;
+            return parseInt(m[3]) * 10000 + (months[m[2]] || 0) * 100 + parseInt(m[1]);
+        }
+
+        function mFilteredData() {
+            return allTransactions
+                .filter(t => {
+                    const okFilter = mFilter === 'all' || (mFilter === 'income' && t.isIncome) || (mFilter === 'refund' && !t.isIncome);
+                    const okSearch = mSearch === '' || (t.order || '').toLowerCase().includes(mSearch.toLowerCase());
+                    return okFilter && okSearch;
+                })
+                .sort((a, b) => {
+                    // ใช้ rawSerial (วัน+เวลา) ถ้ามี, ถ้าไม่มีใช้ parseThaiDateKey
+                    const aKey = a.rawSerial || parseThaiDateKey(a.date);
+                    const bKey = b.rawSerial || parseThaiDateKey(b.date);
+                    return mSortDesc ? (bKey - aKey) : (aKey - bKey);
+                });
+        }
+
+        function mMethodBadge(method) {
+            const map = { 'เงินสด': 'bg-blue-100 text-blue-700', 'เงินโอน': 'bg-purple-100 text-purple-700', 'Prompt Pay': 'bg-green-100 text-green-700' };
+            return `<span class="${map[method] || 'bg-slate-100 text-slate-600'} text-xs px-2.5 py-1 rounded-md font-medium whitespace-nowrap">${method}</span>`;
+        }
+
+        function renderModal() {
+            const data = mFilteredData();
+            const totalPages = Math.max(1, Math.ceil(data.length / MODAL_PAGE_SIZE));
+            if (mPage > totalPages) mPage = 1;
+            const start = (mPage - 1) * MODAL_PAGE_SIZE;
+            const pageData = data.slice(start, start + MODAL_PAGE_SIZE);
+
+            const tbody = document.getElementById('modal-tbody');
+            tbody.innerHTML = '';
+            document.getElementById('modal-empty').classList.toggle('hidden', pageData.length > 0);
+
+            const fmt = n => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(n);
+            pageData.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition-colors';
+                const amtClass = t.isIncome ? 'text-green-600' : 'text-red-500';
+                const prefix   = t.isIncome ? '+' : '-';
+                const typeEl   = t.isIncome
+                    ? `<span class="inline-flex items-center text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full"><i class="fas fa-arrow-down mr-1"></i> รายรับ</span>`
+                    : `<span class="inline-flex items-center text-xs font-medium text-red-600 bg-red-50 px-2.5 py-1 rounded-full"><i class="fas fa-arrow-up mr-1"></i> คืนเงิน</span>`;
+                tr.innerHTML = `
+                    <td class="py-3 px-5 nowrap">
+                        <p class="font-bold text-slate-700 text-sm">${t.date}</p>
+                        <p class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>${t.time || '-'}</p>
+                    </td>
+                    <td class="py-3 px-5 text-sm font-medium text-slate-700">${t.order}</td>
+                    <td class="py-3 px-5 text-center">${mMethodBadge(t.method)}</td>
+                    <td class="py-3 px-5 text-center">${typeEl}</td>
+                    <td class="py-3 px-5 text-right font-bold ${amtClass}">${prefix}${fmt(t.amount)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('modal-result-count').textContent = `แสดง ${data.length === 0 ? 0 : start+1}–${Math.min(start+MODAL_PAGE_SIZE, data.length)} จาก ${data.length} รายการ`;
+            document.getElementById('modal-pag-info').textContent = `หน้า ${mPage} / ${totalPages}`;
+
+            // Pagination buttons
+            const pagCont = document.getElementById('modal-pag-btns');
+            pagCont.innerHTML = '';
+            const mkBtn = (label, page, active, disabled) => {
+                const b = document.createElement('button');
+                b.innerHTML = label;
+                b.className = active
+                    ? 'w-9 h-9 flex items-center justify-center rounded-lg bg-blue-600 text-white text-sm font-bold shadow'
+                    : disabled
+                    ? 'w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-300 bg-white text-sm cursor-not-allowed'
+                    : 'w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 text-sm transition-colors';
+                if (!disabled && !active) b.onclick = () => { mPage = page; renderModal(); };
+                return b;
+            };
+            pagCont.appendChild(mkBtn('<i class="fas fa-chevron-left text-xs"></i>', mPage-1, false, mPage===1));
+            for (let i = 1; i <= totalPages; i++) {
+                if (totalPages <= 7 || i === 1 || i === totalPages || Math.abs(i - mPage) <= 1) {
+                    pagCont.appendChild(mkBtn(i, i, i === mPage, false));
+                } else if ((i === 2 && mPage > 4) || (i === totalPages-1 && mPage < totalPages-3)) {
+                    const d = document.createElement('span');
+                    d.className = 'w-9 h-9 flex items-center justify-center text-slate-400 text-sm';
+                    d.textContent = '...';
+                    pagCont.appendChild(d);
+                }
+            }
+            pagCont.appendChild(mkBtn('<i class="fas fa-chevron-right text-xs"></i>', mPage+1, false, mPage===totalPages));
+        }
+
+        function toggleModalSort() {
+            mSortDesc = !mSortDesc;
+            mPage = 1;
+            document.getElementById('sort-label').textContent = mSortDesc ? 'ใหม่สุดก่อน' : 'เก่าสุดก่อน';
+            document.getElementById('sort-icon').className = mSortDesc
+                ? 'fas fa-sort-amount-down text-xs'
+                : 'fas fa-sort-amount-up text-xs';
+            renderModal();
+        }
+
+        function setMFilter(f) {
+            mFilter = f; mPage = 1;
+            ['all','income','refund'].forEach(id => {
+                const el = document.getElementById('mf-' + id);
+                if (id === f) {
+                    el.classList.add('bg-blue-600','text-white','border-blue-600');
+                    el.classList.remove('bg-white','text-slate-600','border-slate-200');
+                } else {
+                    el.classList.remove('bg-blue-600','text-white','border-blue-600');
+                    el.classList.add('bg-white','text-slate-600','border-slate-200');
+                }
+            });
+            renderModal();
+        }
+
+        function openTxnModal() {
+            mFilter = 'all'; mSearch = ''; mPage = 1;
+            document.getElementById('modal-search').value = '';
+            setMFilter('all');
+            document.getElementById('txn-modal').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeTxnModal() {
+            document.getElementById('txn-modal').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        function closeTxnModalOutside(e) {
+            if (e.target === document.getElementById('txn-modal')) closeTxnModal();
+        }
+
+        // Search in modal
+        let mSearchTimer;
+        document.getElementById('modal-search').addEventListener('input', e => {
+            clearTimeout(mSearchTimer);
+            mSearchTimer = setTimeout(() => { mSearch = e.target.value; mPage = 1; renderModal(); }, 250);
+        });
+
+        // Esc key closes modal
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeTxnModal(); });
+    </script>
+</body>
+</html>
+
