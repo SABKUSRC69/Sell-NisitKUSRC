@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เครื่องมือทำความสะอาดไฟล์ index.html</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Prompt', sans-serif; background-color: #f3f4f6; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-xl shadow-lg max-w-lg w-full text-center">
+        <div class="text-blue-500 text-5xl mb-4">
+            <i class="fas fa-broom"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">ล้างข้อมูลเก่าในไฟล์</h1>
+        <p class="text-gray-600 mb-6 text-sm">เลือกไฟล์ <span class="font-bold text-red-500">index.html</span> ของคุณ ระบบจะลบโค้ดข้อมูลเก่าที่ฝังอยู่ออก และดาวน์โหลดไฟล์ใหม่ที่สะอาดแล้วให้คุณนำไปใช้แทนที่ของเดิม</p>
+        
+        <input type="file" id="fileInput" accept=".html" class="hidden">
+        <label for="fileInput" class="cursor-pointer inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition w-full shadow-md">
+            1. คลิกเพื่อเลือกไฟล์ index.html
+        </label>
+        
+        <div id="status" class="mt-6 text-sm hidden"></div>
+        
+        <div class="mt-8 pt-6 border-t border-gray-100 text-left text-xs text-gray-500">
+            <p class="font-bold mb-1">ขั้นตอนถัดไป:</p>
+            <ol class="list-decimal pl-4 space-y-1">
+                <li>เมื่อดาวน์โหลดไฟล์เสร็จ ให้นำไฟล์ที่ได้ไป **แทนที่** ไฟล์ <code class="bg-gray-100 px-1 rounded">index.html</code> อันเก่าของคุณ</li>
+                <li>เปิดหน้าเว็บใหม่ของคุณ</li>
+                <li>อัปโหลดไฟล์ Excel ได้เลย!</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const statusDiv = document.getElementById('status');
+            statusDiv.classList.remove('hidden');
+            statusDiv.innerHTML = '<span class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i> กำลังประมวลผล...</span>';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                let content = e.target.result;
+                
+                // Pattern to match all auto-seed script blocks
+                const pattern = /<script>\s*\n\s*\/\/ Auto-seeded data[\s\S]*?<\/script>\s*\n/g;
+                
+                const matches = content.match(pattern);
+                const blockCount = matches ? matches.length : 0;
+                
+                if (blockCount > 0) {
+                    content = content.replace(pattern, '');
+                    
+                    // Trigger download
+                    const blob = new Blob([content], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'index.html'; // Set download filename
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    statusDiv.innerHTML = `<span class="text-green-600 font-medium"><i class="fas fa-check-circle mr-1"></i> ลบโค้ดขยะสำเร็จแล้ว (${blockCount} บล็อก)!<br>ดาวน์โหลดไฟล์เรียบร้อย</span>`;
+                } else {
+                    statusDiv.innerHTML = `<span class="text-orange-500 font-medium"><i class="fas fa-exclamation-circle mr-1"></i> ไม่พบโค้ดขยะในไฟล์นี้ครับ อาจจะลบไปแล้ว</span>`;
+                }
+            };
+            reader.readAsText(file);
+        });
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</body>
+</html>
