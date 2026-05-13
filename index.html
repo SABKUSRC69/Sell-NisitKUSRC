@@ -1156,6 +1156,7 @@
                     map[dayKey] = {
                         date: t.date,
                         orders: 0,
+                        incomeOrders: 0,
                         income: 0,
                         refund: 0,
                         cash: 0,
@@ -1165,7 +1166,7 @@
                     };
                 }
                 const signed = t.isIncome ? t.amount : -t.amount;
-                if (t.isIncome) { map[dayKey].income += t.amount; }
+                if (t.isIncome) { map[dayKey].income += t.amount; map[dayKey].incomeOrders++; }
                 else            { map[dayKey].refund += t.amount; }
                 if (t.method === 'เงินสด')    map[dayKey].cash      += signed;
                 else if (t.method === 'เงินโอน') map[dayKey].transfer  += signed;
@@ -1203,7 +1204,7 @@
                 tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
                 tr.innerHTML = `
                     <td class="py-3 px-4 font-bold text-slate-700 whitespace-nowrap">${d.date}</td>
-                    <td class="py-3 px-4 text-center text-slate-600">${d.orders} บิล</td>
+                    <td class="py-3 px-4 text-center text-slate-600">${d.incomeOrders} บิล</td>
                     <td class="py-3 px-4 text-right font-medium ${d.cash !== 0 ? 'text-blue-600' : 'text-slate-300'}">${fmtNum(d.cash)}</td>
                     <td class="py-3 px-4 text-right font-medium ${d.transfer !== 0 ? 'text-purple-600' : 'text-slate-300'}">${fmtNum(d.transfer)}</td>
                     <td class="py-3 px-4 text-right font-medium ${d.promptpay !== 0 ? 'text-emerald-600' : 'text-slate-300'}">${fmtNum(d.promptpay)}</td>
