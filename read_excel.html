@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <pre id="output">Loading...</pre>
+    <script>
+        fetch('pos.payment (27).xlsx')
+            .then(res => res.arrayBuffer())
+            .then(data => {
+                const workbook = XLSX.read(data, {type: 'array'});
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+                const refunds = json.filter(row => {
+                    const amount = typeof row['จำนวน'] === 'number' ? row['จำนวน'] : parseFloat(String(row['จำนวน']).replace(/,/g,''));
+                    return amount < 0;
+                });
+                const orders = json.filter(row => {
+                    const ord = String(row['Order'] || '').trim().toLowerCase();
+                    return refunds.some(r => {
+                        const rOrd = String(r['Order'] || '').trim().toLowerCase();
+                        return ord && rOrd && (ord.includes(rOrd) || rOrd.includes(ord));
+                    });
+                });
+                document.getElementById('output').textContent = JSON.stringify({refunds, related_orders: orders}, null, 2);
+            })
+            .catch(err => {
+                document.getElementById('output').textContent = "ERROR: " + err;
+            });
+    </script>
+</body>
+</html>
