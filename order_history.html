@@ -349,16 +349,17 @@
     const reader = new FileReader();
     reader.onload = function(evt) {
       const data = new Uint8Array(evt.target.result);
-      const wb = XLSX.read(data, { type: 'array' });
+      const wb = XLSX.read(data, { type: 'array', cellDates: false });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(ws);
+      const json = XLSX.utils.sheet_to_json(ws, { raw: true });
       if (json.length === 0) { alert('ไม่พบข้อมูลในไฟล์'); return; }
 
       allTransactions = [];
       json.forEach(row => {
         const rawMethod = String(row['วิธีการจ่ายเงิน'] || '').trim();
         const orderId   = String(row['Order'] || '').trim();
-        if (/\(\d+\)/.test(rawMethod) || orderId === '' || orderId === 'N/A') return;
+        const isSummaryRow = /\(\d+\)/.test(rawMethod) || !row['วันที่'] || String(row['วันที่']).trim() === 'รวม';
+        if (isSummaryRow) return;
 
         const rawAmount = row['จำนวน'];
         const amount = typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/,/g,'')) || 0;
@@ -368,13 +369,17 @@
         if (typeof rawDate === 'number') {
           const dayPart = Math.floor(rawDate);
           const d = new Date((dayPart - 25569) * 86400 * 1000);
-          const thaiYr = d.getFullYear() + 543 - 2500;
+          
+          const thaiYr = d.getUTCFullYear() + 543 - 2500;
           const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-          dateStr = `${d.getDate()} ${months[d.getMonth()]} ${thaiYr}`;
+          dateStr = `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${thaiYr}`;
+          
           const tf = rawDate - dayPart;
           const ts = Math.round(tf * 86400);
-          const hh = Math.floor(ts/3600), mm = Math.floor((ts%3600)/60);
+          const hh = Math.floor(ts / 3600);
+          const mm = Math.floor((ts % 3600) / 60);
           timeStr = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')} น.`;
+          
           rawSerial = rawDate;
         } else {
           dateStr = String(rawDate || 'N/A');
