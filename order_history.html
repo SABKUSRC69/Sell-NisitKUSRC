@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ประวัติตามเลขออเดอร์</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Prompt', sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
+
+  /* ---- Header ---- */
+  .header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 4px 20px rgba(37,99,235,0.3);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-icon { background: rgba(255,255,255,0.15); border-radius: 12px; width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; }
+  .header h1 { color: #fff; font-size: 1.4rem; font-weight: 700; }
+  .header p { color: rgba(255,255,255,0.75); font-size: 0.82rem; margin-top: 2px; }
+  .back-btn {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 10px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+  .back-btn:hover { background: rgba(255,255,255,0.25); }
+
+  /* ---- Upload Zone ---- */
+  .upload-zone {
+    margin: 24px 32px;
+    background: #fff;
+    border: 2px dashed #93c5fd;
+    border-radius: 16px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .upload-zone i { font-size: 1.8rem; color: #3b82f6; }
+  .upload-zone label {
+    background: #2563eb;
+    color: #fff;
+    padding: 9px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 500;
+    display: flex; align-items: center; gap: 7px;
+    transition: background 0.2s;
+  }
+  .upload-zone label:hover { background: #1d4ed8; }
+  .upload-zone input[type=file] { display: none; }
+  #upload-status { font-size: 0.85rem; color: #64748b; }
+
+  /* ---- Controls ---- */
+  .controls {
+    margin: 0 32px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .search-box {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 360px;
+  }
+  .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.85rem; }
+  .search-box input {
+    width: 100%;
+    padding: 9px 12px 9px 34px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 0.88rem;
+    outline: none;
+    background: #fff;
+    transition: border 0.2s;
+  }
+  .search-box input:focus { border-color: #3b82f6; }
+
+  .filter-btns { display: flex; gap: 6px; }
+  .filter-btn {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    font-family: 'Prompt', sans-serif;
+    font-size: 0.82rem;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.2s;
+  }
+  .filter-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .filter-btn:hover:not(.active) { background: #f1f5f9; }
+
+  .sort-btn {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    font-family: 'Prompt', sans-serif;
+    font-size: 0.82rem;
+    cursor: pointer;
+    color: #475569;
+    display: flex; align-items: center; gap: 6px;
+    transition: all 0.2s;
+    margin-left: auto;
+  }
+  .sort-btn:hover { background: #f1f5f9; }
+
+  /* ---- Table Card ---- */
+  .table-card {
+    margin: 0 32px 32px;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 680px; }
+  thead th {
+    background: #f8fafc;
+    padding: 13px 16px;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+  }
+  thead th.right { text-align: right; }
+  thead th.center { text-align: center; }
+  tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f8fafc; }
+  tbody td { padding: 12px 16px; font-size: 0.88rem; }
+  tbody td.right { text-align: right; }
+  tbody td.center { text-align: center; }
+
+  /* Order badge */
+  .order-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 700;
+    font-size: 0.88rem;
+    padding: 4px 10px;
+    border-radius: 8px;
+    letter-spacing: 0.02em;
+  }
+
+  .method-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
+  .method-cash     { background: #dbeafe; color: #1d4ed8; }
+  .method-transfer { background: #ede9fe; color: #6d28d9; }
+  .method-prompt   { background: #d1fae5; color: #065f46; }
+  .method-other    { background: #f1f5f9; color: #475569; }
+
+  .type-in  { background: #dcfce7; color: #15803d; }
+  .type-out { background: #fee2e2; color: #b91c1c; }
+
+  .amount-in  { color: #16a34a; font-weight: 700; }
+  .amount-out { color: #dc2626; font-weight: 700; }
+
+  /* ---- Pagination ---- */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-top: 1px solid #f1f5f9;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .pag-info { font-size: 0.82rem; color: #64748b; }
+  .pag-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pag-btns button {
+    min-width: 34px; height: 34px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Prompt', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: #f1f5f9;
+    color: #475569;
+  }
+  .pag-btns button.active { background: #2563eb; color: #fff; }
+  .pag-btns button:hover:not(.active) { background: #e2e8f0; }
+
+  /* ---- Empty ---- */
+  .empty { padding: 60px 20px; text-align: center; color: #94a3b8; }
+  .empty i { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+  .empty p { font-size: 0.9rem; }
+
+  /* ---- Summary strip ---- */
+  .summary-strip {
+    display: flex;
+    gap: 12px;
+    margin: 0 32px 16px;
+    flex-wrap: wrap;
+  }
+  .stat-chip {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .stat-chip .icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .stat-chip .label { font-size: 0.72rem; color: #64748b; }
+  .stat-chip .value { font-size: 1rem; font-weight: 700; color: #1e293b; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-icon"><i class="fas fa-list-ol"></i></div>
+    <div>
+      <h1>ประวัติตามเลขออเดอร์</h1>
+      <p>เรียงลำดับตามหมายเลขออเดอร์จากน้อยไปมาก</p>
+    </div>
+  </div>
+  <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i> กลับหน้าหลัก</a>
+</div>
+
+<!-- Upload -->
+<div class="upload-zone">
+  <i class="fas fa-file-excel"></i>
+  <div>
+    <div style="font-weight:600;color:#1e293b;margin-bottom:4px;">อัปโหลดไฟล์ Excel</div>
+    <div style="font-size:0.8rem;color:#64748b;">หากยังไม่มีข้อมูลในหน้าหลัก ให้อัปโหลดที่นี่ได้เลย</div>
+  </div>
+  <label><i class="fas fa-upload"></i> เลือกไฟล์ .xlsx <input type="file" id="excelUpload" accept=".xlsx,.xls"></label>
+  <span id="upload-status">ยังไม่ได้อัปโหลด</span>
+</div>
+
+<!-- Summary strip -->
+<div class="summary-strip" id="summary-strip" style="display:none!important;"></div>
+
+<!-- Controls -->
+<div class="controls">
+  <div class="search-box">
+    <i class="fas fa-search"></i>
+    <input type="text" id="search-input" placeholder="ค้นหาเลขออเดอร์...">
+  </div>
+  <div class="filter-btns">
+    <button class="filter-btn active" id="f-all"    onclick="setFilter('all')">ทั้งหมด</button>
+    <button class="filter-btn"        id="f-income" onclick="setFilter('income')">รายรับ</button>
+    <button class="filter-btn"        id="f-refund" onclick="setFilter('refund')">คืนเงิน</button>
+  </div>
+  <button class="sort-btn" id="sort-btn" onclick="toggleSort()">
+    <i class="fas fa-sort-numeric-down" id="sort-icon"></i>
+    <span id="sort-label">เลขออเดอร์ มาก→น้อย</span>
+  </button>
+</div>
+
+<!-- Table -->
+<div class="table-card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:160px">วันที่ / เวลา</th>
+          <th>เลขออเดอร์</th>
+          <th class="center">วิธีชำระ</th>
+          <th class="center">ประเภท</th>
+          <th class="right">จำนวนเงิน (฿)</th>
+        </tr>
+      </thead>
+      <tbody id="main-tbody">
+        <tr>
+          <td colspan="5" class="empty">
+            <i class="fas fa-inbox"></i>
+            <p>กรุณาอัปโหลดไฟล์ Excel หรือเปิดหน้าหลักเพื่อโหลดข้อมูลก่อน</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    <span class="pag-info" id="pag-info"></span>
+    <div class="pag-btns" id="pag-btns"></div>
+  </div>
+</div>
+
+<script>
+  let allTransactions = [];
+  let currentFilter = 'all';
+  let sortAsc = false; // false = มาก→น้อย (ออเดอร์ล่าสุดก่อน)
+  let currentPage = 1;
+  const PAGE_SIZE = 25;
+
+  // ---- Load from localStorage ----
+  function loadFromStorage() {
+    const saved = localStorage.getItem('salesData');
+    if (saved) {
+      try {
+        allTransactions = JSON.parse(saved);
+        document.getElementById('upload-status').textContent = `โหลดข้อมูลแล้ว ${allTransactions.length} รายการ`;
+        render();
+        renderSummary();
+        return true;
+      } catch(e) {}
+    }
+    return false;
+  }
+
+  // ---- Excel upload ----
+  document.getElementById('excelUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws);
+      if (json.length === 0) { alert('ไม่พบข้อมูลในไฟล์'); return; }
+
+      allTransactions = [];
+      json.forEach(row => {
+        const rawMethod = String(row['วิธีการจ่ายเงิน'] || '').trim();
+        const orderId   = String(row['Order'] || '').trim();
+        if (/\(\d+\)/.test(rawMethod) || orderId === '' || orderId === 'N/A') return;
+
+        const rawAmount = row['จำนวน'];
+        const amount = typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/,/g,'')) || 0;
+        const isIncome = amount >= 0;
+        const rawDate = row['วันที่'];
+        let dateStr = 'N/A', timeStr = '-', rawSerial = 0;
+        if (typeof rawDate === 'number') {
+          const dayPart = Math.floor(rawDate);
+          const d = new Date((dayPart - 25569) * 86400 * 1000);
+          const thaiYr = d.getFullYear() + 543 - 2500;
+          const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+          dateStr = `${d.getDate()} ${months[d.getMonth()]} ${thaiYr}`;
+          const tf = rawDate - dayPart;
+          const ts = Math.round(tf * 86400);
+          const hh = Math.floor(ts/3600), mm = Math.floor((ts%3600)/60);
+          timeStr = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')} น.`;
+          rawSerial = rawDate;
+        } else {
+          dateStr = String(rawDate || 'N/A');
+        }
+
+        let method = String(rawMethod);
+        if (rawMethod.startsWith('เงินโอน')) method = 'เงินโอน';
+        else if (rawMethod.startsWith('เงินสด')) method = 'เงินสด';
+        else if (rawMethod.toLowerCase().startsWith('prompt')) method = 'Prompt Pay';
+
+        allTransactions.push({ date: dateStr, time: timeStr, rawSerial, order: orderId, method, type: isIncome ? 'รายรับ' : 'คืนเงิน', amount: Math.abs(amount), isIncome });
+      });
+
+      localStorage.setItem('salesData', JSON.stringify(allTransactions));
+      document.getElementById('upload-status').textContent = `โหลดแล้ว ${allTransactions.length} รายการ`;
+      currentPage = 1;
+      render();
+      renderSummary();
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  // ---- Summary ----
+  function renderSummary() {
+    const strip = document.getElementById('summary-strip');
+    strip.style.display = 'flex';
+    const income = allTransactions.filter(t => t.isIncome).reduce((s,t) => s+t.amount, 0);
+    const refund = allTransactions.filter(t => !t.isIncome).reduce((s,t) => s+t.amount, 0);
+    const fmt = n => new Intl.NumberFormat('th-TH', {minimumFractionDigits:2}).format(n);
+    strip.innerHTML = `
+      <div class="stat-chip">
+        <div class="icon" style="background:#eff6ff;color:#2563eb"><i class="fas fa-receipt"></i></div>
+        <div><div class="label">รายการทั้งหมด</div><div class="value">${allTransactions.length}</div></div>
+      </div>
+      <div class="stat-chip">
+        <div class="icon" style="background:#dcfce7;color:#16a34a"><i class="fas fa-arrow-down"></i></div>
+        <div><div class="label">รายรับรวม</div><div class="value amount-in">${fmt(income)} ฿</div></div>
+      </div>
+      <div class="stat-chip">
+        <div class="icon" style="background:#fee2e2;color:#dc2626"><i class="fas fa-arrow-up"></i></div>
+        <div><div class="label">คืนเงินรวม</div><div class="value amount-out">${fmt(refund)} ฿</div></div>
+      </div>
+      <div class="stat-chip">
+        <div class="icon" style="background:#ede9fe;color:#7c3aed"><i class="fas fa-calculator"></i></div>
+        <div><div class="label">ยอดสุทธิ</div><div class="value">${fmt(income - refund)} ฿</div></div>
+      </div>
+    `;
+  }
+
+  // ---- Filter & Sort ----
+  function getList() {
+    let list = [...allTransactions];
+    if (currentFilter === 'income') list = list.filter(t => t.isIncome);
+    if (currentFilter === 'refund') list = list.filter(t => !t.isIncome);
+    const q = document.getElementById('search-input').value.trim().toLowerCase();
+    if (q) list = list.filter(t => (t.order || '').toLowerCase().includes(q));
+
+    // Sort by order number
+    list.sort((a, b) => {
+      const extractNum = s => {
+        const m = String(s || '').match(/(\d+)/);
+        return m ? parseInt(m[1], 10) : 0;
+      };
+      const an = extractNum(a.order);
+      const bn = extractNum(b.order);
+      // If numbers equal, compare full string
+      if (an !== bn) return sortAsc ? an - bn : bn - an;
+      return sortAsc
+        ? String(a.order).localeCompare(String(b.order))
+        : String(b.order).localeCompare(String(a.order));
+    });
+    return list;
+  }
+
+  function setFilter(f) {
+    currentFilter = f;
+    currentPage = 1;
+    ['all','income','refund'].forEach(id => {
+      const btn = document.getElementById('f-' + id);
+      btn.classList.toggle('active', id === f);
+    });
+    render();
+  }
+
+  function toggleSort() {
+    sortAsc = !sortAsc;
+    document.getElementById('sort-icon').className = sortAsc ? 'fas fa-sort-numeric-up' : 'fas fa-sort-numeric-down';
+    document.getElementById('sort-label').textContent = sortAsc ? 'เลขออเดอร์ น้อย→มาก' : 'เลขออเดอร์ มาก→น้อย';
+    currentPage = 1;
+    render();
+  }
+
+  document.getElementById('search-input').addEventListener('input', () => { currentPage = 1; render(); });
+
+  // ---- Method badge helper ----
+  function methodBadge(m) {
+    if (m === 'เงินสด')    return `<span class="method-badge method-cash">${m}</span>`;
+    if (m === 'เงินโอน')   return `<span class="method-badge method-transfer">${m}</span>`;
+    if (m === 'Prompt Pay') return `<span class="method-badge method-prompt">${m}</span>`;
+    return `<span class="method-badge method-other">${m}</span>`;
+  }
+
+  // ---- Render ----
+  function render() {
+    const list = getList();
+    const total = list.length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const slice = list.slice(start, start + PAGE_SIZE);
+
+    const tbody = document.getElementById('main-tbody');
+    tbody.innerHTML = '';
+
+    if (slice.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty"><i class="fas fa-search"></i><p>ไม่พบรายการที่ค้นหา</p></div></td></tr>`;
+    } else {
+      const fmt = n => new Intl.NumberFormat('th-TH', {minimumFractionDigits:2}).format(n);
+      slice.forEach(item => {
+        const tr = document.createElement('tr');
+        const ac = item.isIncome ? 'amount-in' : 'amount-out';
+        const px = item.isIncome ? '+' : '-';
+        const typeCls = item.isIncome ? 'type-in' : 'type-out';
+        const typeIcon = item.isIncome ? 'fa-arrow-down' : 'fa-arrow-up';
+        tr.innerHTML = `
+          <td>
+            <div style="font-weight:600;color:#334155">${item.date}</div>
+            <div style="font-size:0.75rem;color:#94a3b8;margin-top:2px"><i class="far fa-clock" style="margin-right:3px"></i>${item.time}</div>
+          </td>
+          <td><span class="order-badge"><i class="fas fa-hashtag" style="font-size:0.75rem"></i>${item.order}</span></td>
+          <td class="center">${methodBadge(item.method)}</td>
+          <td class="center">
+            <span class="method-badge ${typeCls}" style="display:inline-flex;align-items:center;gap:4px">
+              <i class="fas ${typeIcon}" style="font-size:0.7rem"></i>${item.type}
+            </span>
+          </td>
+          <td class="right ${ac}" style="font-size:1rem">${px}${fmt(item.amount)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Pagination info
+    document.getElementById('pag-info').textContent = total > 0
+      ? `แสดง ${start+1}–${Math.min(start+PAGE_SIZE, total)} จาก ${total} รายการ`
+      : 'ไม่พบรายการ';
+
+    // Pagination buttons
+    const btns = document.getElementById('pag-btns');
+    btns.innerHTML = '';
+    // Show limited page buttons
+    const maxShow = 7;
+    let pStart = Math.max(1, currentPage - Math.floor(maxShow/2));
+    let pEnd   = Math.min(totalPages, pStart + maxShow - 1);
+    if (pEnd - pStart < maxShow - 1) pStart = Math.max(1, pEnd - maxShow + 1);
+
+    if (pStart > 1) {
+      const b = document.createElement('button'); b.textContent = '1'; b.onclick = () => goPage(1); btns.appendChild(b);
+      if (pStart > 2) { const s = document.createElement('button'); s.textContent = '…'; s.disabled = true; s.style.cursor='default'; btns.appendChild(s); }
+    }
+    for (let i = pStart; i <= pEnd; i++) {
+      const b = document.createElement('button');
+      b.textContent = i;
+      if (i === currentPage) b.classList.add('active');
+      b.onclick = () => goPage(i);
+      btns.appendChild(b);
+    }
+    if (pEnd < totalPages) {
+      if (pEnd < totalPages - 1) { const s = document.createElement('button'); s.textContent = '…'; s.disabled = true; s.style.cursor='default'; btns.appendChild(s); }
+      const b = document.createElement('button'); b.textContent = totalPages; b.onclick = () => goPage(totalPages); btns.appendChild(b);
+    }
+  }
+
+  function goPage(p) { currentPage = p; render(); window.scrollTo({top:0,behavior:'smooth'}); }
+
+  // Init
+  loadFromStorage();
+</script>
+</body>
+</html>
