@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Debug Excel Reader</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 20px; border-radius: 12px; margin: 10px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h2 { color: #1e293b; }
+        pre { background: #f8fafc; padding: 10px; border-radius: 8px; overflow: auto; max-height: 400px; font-size: 12px; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        th, td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; font-size: 13px; }
+        th { background: #3b82f6; color: white; }
+        tr:nth-child(even) { background: #f8fafc; }
+        .highlight { background: #fef3c7 !important; }
+        .error { color: #dc2626; font-weight: bold; }
+        .success { color: #16a34a; font-weight: bold; }
+        input[type="file"] { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug: ตรวจสอบการอ่านไฟล์ Excel</h1>
+    <p>อัปโหลดไฟล์ Excel เดียวกันกับที่ใช้ในเว็บหลัก เพื่อตรวจสอบว่าข้อมูลถูกอ่านถูกต้องหรือไม่</p>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                analyzeExcel(evt.target.result);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Also try auto-loading pos.payment.xlsx if running on server
+        if (location.protocol === 'http:' || location.protocol === 'https:') {
+            // Try both filenames
+            const filenames = ['pos.payment.xlsx', 'pos.payment (27).xlsx'];
+            (async () => {
+                for (const fn of filenames) {
+                    try {
+                        const res = await fetch(fn, { cache: 'no-store' });
+                        if (res.ok) {
+                            const buf = await res.arrayBuffer();
+                            document.getElementById('results').innerHTML = `<div class="card"><p>✅ Auto-loaded <b>${fn}</b> from server</p></div>`;
+                            analyzeExcel(buf);
+                            return;
+                        }
+                    } catch(e) {}
+                }
+                document.getElementById('results').innerHTML = `<div class="card"><p>ℹ️ ไม่พบไฟล์ Excel บนเซิร์ฟเวอร์ กรุณาอัปโหลดไฟล์</p></div>`;
+            })();
+        }
+
+        function analyzeExcel(arrayBuffer) {
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array', cellDates: false });
+            
+            let html = '';
+            
+            // === 1. SHEET INFO ===
+            html += `<div class="card">
+                <h2>📋 ข้อมูลชีท (Sheets)</h2>
+                <p>จำนวนชีท: <b>${workbook.SheetNames.length}</b></p>
+                <p>ชื่อชีท: ${workbook.SheetNames.map((s,i) => `<b>${i}: ${s}</b>`).join(', ')}</p>
+            </div>`;
+
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            
+            // === 2. RAW DATA - sheet_to_json with raw:true (same as main code) ===
+            const jsonRaw = XLSX.utils.sheet_to_json(worksheet, { raw: true });
+            
+            // === 3. RAW DATA - sheet_to_json with raw:false (formatted values) ===
+            const jsonFormatted = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+            
+            // === 4. COLUMN HEADERS ===
+            const headers = jsonRaw.length > 0 ? Object.keys(jsonRaw[0]) : [];
+            html += `<div class="card">
+                <h2>📊 คอลัมน์ที่พบ (Headers)</h2>
+                <p>จำนวนแถวทั้งหมด (raw:true): <b>${jsonRaw.length}</b></p>
+                <p>จำนวนแถวทั้งหมด (raw:false): <b>${jsonFormatted.length}</b></p>
+                <p>คอลัมน์: ${headers.map(h => `<code>${h}</code>`).join(', ')}</p>
+                <p>คอลัมน์ที่โค้ดหลักใช้: <code>วันที่</code>, <code>Order</code>, <code>วิธีการจ่ายเงิน</code>, <code>จำนวน</code></p>
+                <p class="${headers.includes('จำนวน') ? 'success' : 'error'}">
+                    คอลัมน์ 'จำนวน': ${headers.includes('จำนวน') ? '✅ พบ' : '❌ ไม่พบ!'}
+                </p>
+                <p class="${headers.includes('วันที่') ? 'success' : 'error'}">
+                    คอลัมน์ 'วันที่': ${headers.includes('วันที่') ? '✅ พบ' : '❌ ไม่พบ!'}
+                </p>
+                <p class="${headers.includes('Order') ? 'success' : 'error'}">
+                    คอลัมน์ 'Order': ${headers.includes('Order') ? '✅ พบ' : '❌ ไม่พบ!'}
+                </p>
+                <p class="${headers.includes('วิธีการจ่ายเงิน') ? 'success' : 'error'}">
+                    คอลัมน์ 'วิธีการจ่ายเงิน': ${headers.includes('วิธีการจ่ายเงิน') ? '✅ พบ' : '❌ ไม่พบ!'}
+                </p>
+            </div>`;
+
+            // === 5. ANALYZE 'จำนวน' COLUMN ===
+            html += `<div class="card"><h2>💰 วิเคราะห์คอลัมน์ 'จำนวน'</h2>`;
+            
+            let totalRaw = 0;
+            let totalFormatted = 0;
+            let totalAbsRaw = 0;
+            let totalAbsFormatted = 0;
+            let summaryRowsSkipped = 0;
+            let summaryRowsDetail = [];
+            let normalRows = 0;
+            let sampleRows = [];
+            let mismatchRows = [];
+            
+            jsonRaw.forEach((row, idx) => {
+                const rawMethod = String(row['วิธีการจ่ายเงิน'] || '').trim();
+                const rawAmount = row['จำนวน'];
+                const formattedAmount = jsonFormatted[idx] ? jsonFormatted[idx]['จำนวน'] : undefined;
+                
+                // Check if summary row (same logic as main code)
+                const isSummaryRow = /\(\d+\)/.test(rawMethod) || !row['วันที่'] || String(row['วันที่']).trim() === 'รวม';
+                
+                if (isSummaryRow) {
+                    summaryRowsSkipped++;
+                    summaryRowsDetail.push({
+                        row: idx + 2,  // +2 for 1-indexed + header row
+                        method: rawMethod,
+                        date: row['วันที่'],
+                        rawAmount: rawAmount,
+                        formattedAmount: formattedAmount,
+                        reason: !row['วันที่'] ? 'ไม่มีวันที่' : (String(row['วันที่']).trim() === 'รวม' ? 'วันที่ = "รวม"' : 'วิธีจ่ายมีวงเล็บตัวเลข')
+                    });
+                    return;
+                }
+                
+                normalRows++;
+                
+                // Parse amount same way as main code
+                const amountRaw = typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/,/g,'')) || 0;
+                const amountFormatted = typeof formattedAmount === 'number' ? formattedAmount : parseFloat(String(formattedAmount).replace(/,/g,'')) || 0;
+                
+                totalRaw += amountRaw;
+                totalFormatted += amountFormatted;
+                totalAbsRaw += Math.abs(amountRaw);
+                totalAbsFormatted += Math.abs(amountFormatted);
+                
+                // Check for differences between raw and formatted
+                if (Math.abs(amountRaw - amountFormatted) > 0.01) {
+                    mismatchRows.push({
+                        row: idx + 2,
+                        rawValue: rawAmount,
+                        rawParsed: amountRaw,
+                        formattedValue: formattedAmount,
+                        formattedParsed: amountFormatted,
+                        order: row['Order'],
+                        method: rawMethod,
+                        typeofRaw: typeof rawAmount
+                    });
+                }
+                
+                // Collect samples
+                if (sampleRows.length < 20 || idx % 50 === 0) {
+                    sampleRows.push({
+                        row: idx + 2,
+                        date: row['วันที่'],
+                        order: row['Order'],
+                        method: rawMethod,
+                        rawAmount: rawAmount,
+                        typeofRaw: typeof rawAmount,
+                        formattedAmount: formattedAmount,
+                        typeofFormatted: typeof formattedAmount,
+                        parsedRaw: amountRaw,
+                        parsedFormatted: amountFormatted
+                    });
+                }
+            });
+            
+            const incomeRowsRaw = jsonRaw.filter((row, idx) => {
+                const rawMethod = String(row['วิธีการจ่ายเงิน'] || '').trim();
+                const isSummaryRow = /\(\d+\)/.test(rawMethod) || !row['วันที่'] || String(row['วันที่']).trim() === 'รวม';
+                if (isSummaryRow) return false;
+                const rawAmount = row['จำนวน'];
+                const amount = typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/,/g,'')) || 0;
+                return amount >= 0;
+            });
+            
+            const refundRows = jsonRaw.filter((row, idx) => {
+                const rawMethod = String(row['วิธีการจ่ายเงิน'] || '').trim();
+                const isSummaryRow = /\(\d+\)/.test(rawMethod) || !row['วันที่'] || String(row['วันที่']).trim() === 'รวม';
+                if (isSummaryRow) return false;
+                const rawAmount = row['จำนวน'];
+                const amount = typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/,/g,'')) || 0;
+                return amount < 0;
+            });
+            
+            const incomeTotal = incomeRowsRaw.reduce((s, row) => {
+                const rawAmount = row['จำนวน'];
+                return s + (typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/,/g,'')) || 0);
+            }, 0);
+            
+            const refundTotal = refundRows.reduce((s, row) => {
+                const rawAmount = row['จำนวน'];
+                return s + Math.abs(typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/,/g,'')) || 0);
+            }, 0);
+
+            const fmt = n => new Intl.NumberFormat('th-TH', {minimumFractionDigits: 2}).format(n);
+            
+            html += `
+                <table>
+                    <tr><th>รายการ</th><th>ค่า</th></tr>
+                    <tr><td>แถวข้อมูลทั้งหมด (ก่อนกรอง)</td><td><b>${jsonRaw.length}</b></td></tr>
+                    <tr><td>แถวสรุปที่ข้าม (Summary rows)</td><td><b>${summaryRowsSkipped}</b></td></tr>
+                    <tr><td>แถวที่ใช้จริง (Normal rows)</td><td><b>${normalRows}</b></td></tr>
+                    <tr><td>รายรับ (amount >= 0)</td><td><b>${incomeRowsRaw.length} รายการ</b></td></tr>
+                    <tr><td>คืนเงิน (amount < 0)</td><td><b>${refundRows.length} รายการ</b></td></tr>
+                    <tr class="highlight"><td><b>ยอดรวมสุทธิ (raw:true) = totalRevenue</b></td><td class="${totalRaw > 0 ? 'success' : 'error'}"><b>${fmt(totalRaw)} ฿</b></td></tr>
+                    <tr><td>ยอดรวมสุทธิ (raw:false)</td><td>${fmt(totalFormatted)} ฿</td></tr>
+                    <tr><td>ยอดรายรับรวม</td><td class="success">${fmt(incomeTotal)} ฿</td></tr>
+                    <tr><td>ยอดคืนเงินรวม</td><td class="error">-${fmt(refundTotal)} ฿</td></tr>
+                    <tr><td>ผลต่าง raw vs formatted</td><td class="${Math.abs(totalRaw - totalFormatted) > 1 ? 'error' : 'success'}">${fmt(totalRaw - totalFormatted)} ฿</td></tr>
+                    <tr><td>แถวที่ raw ≠ formatted</td><td class="${mismatchRows.length > 0 ? 'error' : 'success'}">${mismatchRows.length} แถว</td></tr>
+                </table>
+            `;
+            html += `</div>`;
+
+            // === 6. SUMMARY ROWS THAT WERE SKIPPED ===
+            if (summaryRowsDetail.length > 0) {
+                html += `<div class="card"><h2>⚠️ แถวสรุปที่ถูกข้าม (${summaryRowsDetail.length} แถว)</h2>
+                <p>แถวเหล่านี้ถูกข้ามเพราะตรงเงื่อนไข isSummaryRow - ตรวจสอบว่าข้ามถูกต้องไหม</p>
+                <table>
+                    <tr><th>แถว Excel</th><th>เหตุผล</th><th>วันที่</th><th>วิธีจ่าย</th><th>จำนวน (raw)</th><th>จำนวน (formatted)</th></tr>`;
+                summaryRowsDetail.forEach(s => {
+                    html += `<tr>
+                        <td>${s.row}</td>
+                        <td>${s.reason}</td>
+                        <td>${s.date === undefined ? '<i>undefined</i>' : s.date}</td>
+                        <td>${s.method || '<i>ว่าง</i>'}</td>
+                        <td>${s.rawAmount}</td>
+                        <td>${s.formattedAmount}</td>
+                    </tr>`;
+                });
+                html += `</table></div>`;
+            }
+
+            // === 7. MISMATCH ROWS ===
+            if (mismatchRows.length > 0) {
+                html += `<div class="card"><h2>🚨 แถวที่ raw ≠ formatted (${mismatchRows.length} แถว)</h2>
+                <p>เหล่านี้คือแถวที่ค่า raw กับ formatted ต่างกัน — อาจเป็นสาเหตุของยอดผิดพลาด!</p>
+                <table>
+                    <tr><th>แถว</th><th>Order</th><th>วิธีจ่าย</th><th>raw value</th><th>typeof</th><th>raw parsed</th><th>formatted value</th><th>formatted parsed</th><th>ผลต่าง</th></tr>`;
+                mismatchRows.slice(0, 50).forEach(m => {
+                    html += `<tr>
+                        <td>${m.row}</td>
+                        <td>${m.order}</td>
+                        <td>${m.method}</td>
+                        <td>${m.rawValue}</td>
+                        <td>${m.typeofRaw}</td>
+                        <td>${m.rawParsed}</td>
+                        <td>${m.formattedValue}</td>
+                        <td>${m.formattedParsed}</td>
+                        <td class="error">${fmt(m.rawParsed - m.formattedParsed)}</td>
+                    </tr>`;
+                });
+                if (mismatchRows.length > 50) html += `<tr><td colspan="9">... และอีก ${mismatchRows.length - 50} แถว</td></tr>`;
+                html += `</table></div>`;
+            }
+
+            // === 8. SAMPLE ROWS ===
+            html += `<div class="card"><h2>📝 ตัวอย่างข้อมูล (${Math.min(sampleRows.length, 30)} แถวแรก)</h2>
+            <table>
+                <tr><th>แถว</th><th>วันที่</th><th>Order</th><th>วิธีจ่าย</th><th>จำนวน (raw)</th><th>typeof</th><th>จำนวน (formatted)</th><th>parsed raw</th></tr>`;
+            sampleRows.slice(0, 30).forEach(s => {
+                html += `<tr>
+                    <td>${s.row}</td>
+                    <td>${s.date}</td>
+                    <td>${s.order}</td>
+                    <td>${s.method}</td>
+                    <td>${s.rawAmount}</td>
+                    <td>${s.typeofRaw}</td>
+                    <td>${s.formattedAmount}</td>
+                    <td>${s.parsedRaw}</td>
+                </tr>`;
+            });
+            html += `</table></div>`;
+
+            // === 9. CHECK FOR DUPLICATE ROWS ===
+            html += `<div class="card"><h2>🔄 ตรวจสอบข้อมูลซ้ำ</h2>`;
+            const orderCounts = {};
+            jsonRaw.forEach((row, idx) => {
+                const rawMethod = String(row['วิธีการจ่ายเงิน'] || '').trim();
+                const isSummaryRow = /\(\d+\)/.test(rawMethod) || !row['วันที่'] || String(row['วันที่']).trim() === 'รวม';
+                if (isSummaryRow) return;
+                const order = String(row['Order'] || '').trim();
+                if (!order) return;
+                if (!orderCounts[order]) orderCounts[order] = [];
+                orderCounts[order].push({ row: idx + 2, amount: row['จำนวน'], method: rawMethod });
+            });
+            const duplicates = Object.entries(orderCounts).filter(([k, v]) => v.length > 1);
+            html += `<p>Order ที่ปรากฏมากกว่า 1 ครั้ง: <b>${duplicates.length}</b> orders</p>`;
+            if (duplicates.length > 0) {
+                html += `<p>⚠️ Order ซ้ำอาจทำให้ยอดรวมสูงกว่าที่คาดไว้!</p>`;
+                html += `<table><tr><th>Order</th><th>จำนวนครั้ง</th><th>รายละเอียด</th></tr>`;
+                duplicates.slice(0, 30).forEach(([order, entries]) => {
+                    html += `<tr>
+                        <td>${order}</td>
+                        <td>${entries.length}</td>
+                        <td>${entries.map(e => `แถว ${e.row}: ${e.amount} (${e.method})`).join('<br>')}</td>
+                    </tr>`;
+                });
+                if (duplicates.length > 30) html += `<tr><td colspan="3">... และอีก ${duplicates.length - 30} orders</td></tr>`;
+                html += `</table>`;
+            }
+            html += `</div>`;
+
+            // === 10. CHECK MULTIPLE SHEETS ===
+            if (workbook.SheetNames.length > 1) {
+                html += `<div class="card"><h2>⚠️ ไฟล์มีหลายชีท!</h2>
+                <p>โค้ดหลักอ่านเฉพาะชีทแรก ("${workbook.SheetNames[0]}") แต่ไฟล์มี ${workbook.SheetNames.length} ชีท</p>
+                <table><tr><th>ชีท</th><th>จำนวนแถว</th></tr>`;
+                workbook.SheetNames.forEach(name => {
+                    const ws = workbook.Sheets[name];
+                    const j = XLSX.utils.sheet_to_json(ws, { raw: true });
+                    html += `<tr><td>${name}</td><td>${j.length}</td></tr>`;
+                });
+                html += `</table></div>`;
+            }
+
+            // === 11. RAW CELL ANALYSIS ===
+            html += `<div class="card"><h2>🔬 วิเคราะห์ raw cell values (คอลัมน์จำนวน)</h2>`;
+            const amountTypes = {};
+            jsonRaw.forEach(row => {
+                const t = typeof row['จำนวน'];
+                amountTypes[t] = (amountTypes[t] || 0) + 1;
+            });
+            html += `<p>ชนิดข้อมูล (typeof) ของคอลัมน์ 'จำนวน':</p><ul>`;
+            for (const [t, c] of Object.entries(amountTypes)) {
+                html += `<li><code>${t}</code>: ${c} แถว</li>`;
+            }
+            html += `</ul></div>`;
+
+            document.getElementById('results').innerHTML = html;
+        }
+    </script>
+</body>
+</html>
